@@ -1,0 +1,70 @@
+{
+  "name": "sistema-financeiro-gabi",
+  "version": "1.0.0",
+  "description": "Sistema Desktop de Gestão Financeira, Evolução de Obra e Parcelamentos",
+  "main": "electron/main.cjs",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && electron .\"",
+    "dev:web": "vite",
+    "build": "vite build",
+    "start": "electron .",
+    "dist:linux": "vite build && electron-builder --linux AppImage deb",
+    "dist:win": "vite build && electron-builder --win nsis portable",
+    "dist": "vite build && electron-builder"
+  },
+  "build": {
+    "appId": "com.sistemagabi.financeiro",
+    "productName": "Sistema Financeiro & Obra",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "build/**/*"
+    ],
+    "linux": {
+      "icon": "build/icon.png",
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Office"
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "portable",
+        "nsis"
+      ]
+    }
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.469.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.15.0",
+    "tailwind-merge": "^2.6.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.1.0",
+    "cross-env": "^7.0.3",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7",
+    "wait-on": "^8.0.1"
+  }
+}
