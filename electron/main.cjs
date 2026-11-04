@@ -1,9 +1,14 @@
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs');
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 let mainWindow = null;
+
+// Configure autoUpdater
+autoUpdater.autoDownload = false;
+autoUpdater.autoInstallOnAppQuit = true;
 
 const DATA_FILE_PATH = path.join(app.getPath('userData'), 'sistema_gabi_data.json');
 const BACKUP_FILE_PATH = path.join(app.getPath('userData'), 'sistema_gabi_data.bak.json');
@@ -142,9 +147,70 @@ function createWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+
+  // Check for updates after window loads
+  mainWindow.webContents.once('did-finish-load', () => {
+    if (!isDev) {
+      setTimeout(() => {
+        autoUpdater.checkForUpdates().catch((err) => {
+          console.warn('[AutoUpdater] Erro ao verificar atualizações:', err.message);
+        });
+      }, 3000);
+    }
+  });
+}
+
+function setupAutoUpdater() {
+  autoUpdater.on('checking-for-update', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('updater-checking');
+    }
+  });
+
+  autoUpdater.on('update-available', (info) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('updater-available', {
+        version: info.version,
+        releaseDate: info.releaseDate,
+        releaseNotes: info.releaseNotes,
+      });
+    }
+  });
+
+  autoUpdater.on('update-not-available', (info) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('updater-not-available', info);
+    }
+  });
+
+  autoUpdater.on('error', (err) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('updater-error', err ? err.message : 'Erro na atualização');
+    }
+  });
+
+  autoUpdater.on('download-progress', (progressObj) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('updater-progress', {
+        percent: progressObj.percent,
+        transferred: progressObj.transferred,
+        total: progressObj.total,
+        bytesPerSecond: progressObj.bytesPerSecond,
+      });
+    }
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('updater-downloaded', {
+        version: info.version,
+      });
+    }
+  });
 }
 
 app.whenReady().then(() => {
+  setupAutoUpdater();
   createWindow();
 
   app.on('activate', () => {
@@ -213,4 +279,34 @@ ipcMain.handle('import-backup-dialog', async () => {
     }
   }
   return { canceled: true };
+});
+
+// Auto-Updater IPC Handlers
+ipcMain.handle('get-app-version', () => {
+  return app.getVersion();
+});
+
+ipcMain.handle('check-for-updates', async () => {
+  if (isDev) {
+    return { dev: true, message: 'Modo de desenvolvimento. Atualizações automáticas disponíveis no app empacotado.' };
+  }
+  try {
+    const result = await autoUpdater.checkForUpdates();
+    return { success: true, result };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('download-update', async () => {
+  try {
+    await autoUpdater.downloadUpdate();
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('install-update', () => {
+  autoUpdater.quitAndInstall(false, true);
 });

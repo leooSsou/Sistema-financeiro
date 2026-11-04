@@ -12,6 +12,7 @@ import { Configuracoes } from './components/Configuracoes';
 import { TransactionModal } from './components/TransactionModal';
 import { ObraModal } from './components/ObraModal';
 import { InstallmentModal } from './components/InstallmentModal';
+import { UpdateNotification } from './components/UpdateNotification';
 
 export function App() {
   const [data, setData] = useState<AppData | null>(null);
@@ -512,6 +513,9 @@ export function App() {
         onSave={handleSaveInstallment}
         installmentToEdit={instToEdit}
       />
+
+      {/* Auto-Update Notification Banner & Modal */}
+      <UpdateNotification />
     </div>
   );
 }

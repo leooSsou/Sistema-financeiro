@@ -10,6 +10,14 @@ declare global {
       openDataFolder: () => Promise<boolean>;
       exportBackup: (data: AppData) => Promise<{ success?: boolean; path?: string; canceled?: boolean; error?: string }>;
       importBackup: () => Promise<{ success?: boolean; data?: AppData; canceled?: boolean; error?: string }>;
+      getAppVersion?: () => Promise<string>;
+      checkForUpdates?: () => Promise<{ success?: boolean; dev?: boolean; result?: any; error?: string; message?: string }>;
+      downloadUpdate?: () => Promise<{ success?: boolean; error?: string }>;
+      installUpdate?: () => Promise<void>;
+      onUpdaterEvent?: (
+        channel: string,
+        callback: (data?: any) => void
+      ) => () => void;
     };
   }
 }

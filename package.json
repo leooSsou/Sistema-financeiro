@@ -8,6 +8,9 @@
     "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && electron .\"",
     "dev:web": "vite",
     "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "start": "electron .",
     "dist:linux": "vite build && electron-builder --linux AppImage deb",
     "dist:win": "vite build && electron-builder --win nsis portable",
@@ -19,6 +22,13 @@
     "directories": {
       "output": "release"
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "leooSsou",
+        "repo": "Sistema-financeiro"
+      }
+    ],
     "files": [
       "dist/**/*",
       "electron/**/*",
@@ -42,6 +52,7 @@
   },
   "dependencies": {
     "clsx": "^2.1.1",
+    "electron-updater": "^6.8.11",
     "lucide-react": "^0.469.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -65,6 +76,7 @@
     "tailwindcss": "^4.3.3",
     "typescript": "^5.7.2",
     "vite": "^6.0.7",
+    "vitest": "^4.1.12",
     "wait-on": "^8.0.1"
   }
 }

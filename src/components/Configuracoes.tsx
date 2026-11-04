@@ -28,6 +28,7 @@ import {
   Save,
   Car,
   TrendingUp,
+  RefreshCw,
   Target,
   BarChart3
 } from 'lucide-react';
@@ -961,15 +962,41 @@ export const Configuracoes: React.FC<ConfiguracoesProps> = ({
         </div>
       )}
 
-      {/* System info */}
-      <div className="p-4 rounded-2xl bg-slate-100 border border-slate-200 text-slate-600 text-xs space-y-1">
-        <div className="flex items-center gap-1.5 font-bold text-slate-800">
-          <Info className="w-4 h-4 text-indigo-600" /> Informações do Sistema
+      {/* System info & Updates */}
+      <div className="p-4 rounded-2xl bg-slate-100 border border-slate-200 text-slate-600 text-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 font-bold text-slate-800">
+            <Info className="w-4 h-4 text-indigo-600" /> Informações do Sistema
+          </div>
+          <p>• Software: {data.appSettings?.systemTitle || 'FinanPro Suite'} (v2.0.0 Modular)</p>
+          <p>• Titular: {data.appSettings?.userName || 'Meu Usuário'}</p>
+          <p>• Suporte Nativo: Linux e Windows (100% Portável & Local)</p>
+          <p>• Repositório: github.com/leooSsou/Sistema-financeiro</p>
         </div>
-        <p>• Software: {data.appSettings?.systemTitle || 'FinanPro Suite'} (v2.0 Modular)</p>
-        <p>• Titular: {data.appSettings?.userName || 'Meu Usuário'}</p>
-        <p>• Suporte Nativo: Linux e Windows (100% Portável & Local)</p>
-        <p>• Último salvamento automático: {data.appSettings?.lastSaved || 'Agora'}</p>
+
+        <div className="flex flex-col items-start md:items-end gap-2">
+          <button
+            onClick={async () => {
+              if (window.electronAPI?.checkForUpdates) {
+                const res = await window.electronAPI.checkForUpdates();
+                if (res?.dev) {
+                  alert(res.message);
+                } else if (res?.error) {
+                  alert('Erro ao verificar atualizações: ' + res.error);
+                }
+              } else {
+                alert('Verificação de atualizações disponível no aplicativo desktop.');
+              }
+            }}
+            className="flex items-center gap-2 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold shadow-sm transition-all active:scale-95"
+          >
+            <RefreshCw className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Verificar Atualizações</span>
+          </button>
+          <span className="text-[11px] text-slate-500">
+            Checagem automática ao iniciar
+          </span>
+        </div>
       </div>
     </div>
   );
