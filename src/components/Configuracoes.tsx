@@ -32,6 +32,7 @@ import {
   Target,
   BarChart3
 } from 'lucide-react';
+import { UpdateInfo } from '../services/updateService';
 
 interface ConfiguracoesProps {
   data: AppData;
@@ -40,6 +41,10 @@ interface ConfiguracoesProps {
   onDeleteCategory: (cat: string) => void;
   onAddCard: (card: CreditCardItem) => void;
   onDeleteCard: (id: string) => void;
+  updateInfo?: UpdateInfo | null;
+  onCheckUpdates?: () => void;
+  isCheckingUpdates?: boolean;
+  onOpenUpdateModal?: () => void;
 }
 
 const CARD_COLORS = [
@@ -58,6 +63,10 @@ export const Configuracoes: React.FC<ConfiguracoesProps> = ({
   onDeleteCategory,
   onAddCard,
   onDeleteCard,
+  updateInfo,
+  onCheckUpdates,
+  isCheckingUpdates,
+  onOpenUpdateModal,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'perfil' | 'modulos' | 'cartoes' | 'categorias' | 'backup'>('perfil');
 
@@ -1052,24 +1061,24 @@ export const Configuracoes: React.FC<ConfiguracoesProps> = ({
         </div>
 
         <div className="flex flex-col items-start md:items-end gap-2">
-          <button
-            onClick={async () => {
-              if (window.electronAPI?.checkForUpdates) {
-                const res = await window.electronAPI.checkForUpdates();
-                if (res?.dev) {
-                  alert(res.message);
-                } else if (res?.error) {
-                  alert('Erro ao verificar atualizações: ' + res.error);
-                }
-              } else {
-                alert('Verificação de atualizações disponível no aplicativo desktop.');
-              }
-            }}
-            className="flex items-center gap-2 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold shadow-sm transition-all active:scale-95"
-          >
-            <RefreshCw className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Verificar Atualizações</span>
-          </button>
+          {updateInfo ? (
+            <button
+              onClick={onOpenUpdateModal}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 rounded-xl text-xs font-black shadow-md shadow-emerald-500/20 transition-all active:scale-95 animate-pulse"
+            >
+              <Sparkles className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>Nova Versão {updateInfo.version} Disponível!</span>
+            </button>
+          ) : (
+            <button
+              disabled={isCheckingUpdates}
+              onClick={onCheckUpdates}
+              className="flex items-center gap-2 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold shadow-sm transition-all active:scale-95 disabled:opacity-60"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${isCheckingUpdates ? 'animate-spin' : ''}`} />
+              <span>{isCheckingUpdates ? 'Verificando...' : 'Verificar Atualizações'}</span>
+            </button>
+          )}
           <span className="text-[11px] text-slate-500">
             Checagem automática ao iniciar
           </span>

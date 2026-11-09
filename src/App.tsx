@@ -18,6 +18,9 @@ import { TransactionModal } from './components/TransactionModal';
 import { ObraModal } from './components/ObraModal';
 import { InstallmentModal } from './components/InstallmentModal';
 import { UpdateNotification } from './components/UpdateNotification';
+import { UpdateModal } from './components/UpdateModal';
+import { checkGitHubRelease, UpdateInfo, CURRENT_APP_VERSION } from './services/updateService';
+import { Sparkles } from 'lucide-react';
 
 export function App() {
   const [data, setData] = useState<AppData | null>(null);
@@ -33,6 +36,66 @@ export function App() {
 
   const [isInstModalOpen, setIsInstModalOpen] = useState(false);
   const [instToEdit, setInstToEdit] = useState<HouseInstallment | null>(null);
+
+  // Auto-Update State
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+  const [isUpdateBannerDismissed, setIsUpdateBannerDismissed] = useState(false);
+  const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
+
+  // Check for updates function
+  const handleCheckForUpdates = useCallback(async (manual = false) => {
+    setIsCheckingUpdates(true);
+    try {
+      // 1. Check GitHub Releases API
+      const release = await checkGitHubRelease(CURRENT_APP_VERSION);
+      if (release) {
+        setUpdateInfo(release);
+        setIsUpdateBannerDismissed(false);
+        if (manual) {
+          setIsUpdateModalOpen(true);
+        }
+        return;
+      }
+
+      // 2. Check Electron autoUpdater if available
+      if (window.electronAPI?.checkForUpdates) {
+        const res = await window.electronAPI.checkForUpdates();
+        if (res?.error && manual) {
+          alert('Erro ao verificar atualizações: ' + res.error);
+        } else if (res?.dev && manual) {
+          alert(`Você está no modo de desenvolvimento local.\nVersão atual: v${CURRENT_APP_VERSION}.\nNenhuma nova versão publicada no GitHub.`);
+        } else if (manual) {
+          alert(`✨ O ${data?.appSettings?.systemTitle || 'FinanPro Suite'} já está na versão mais recente (v${CURRENT_APP_VERSION})!`);
+        }
+      } else if (manual) {
+        alert(`✨ O ${data?.appSettings?.systemTitle || 'FinanPro Suite'} já está na versão mais recente (v${CURRENT_APP_VERSION})!`);
+      }
+    } catch (err: any) {
+      if (manual) alert('Erro ao verificar atualizações: ' + (err.message || err));
+    } finally {
+      setIsCheckingUpdates(false);
+    }
+  }, [data?.appSettings?.systemTitle]);
+
+  // Initial update check & event listeners
+  useEffect(() => {
+    handleCheckForUpdates(false);
+
+    if (window.electronAPI?.onUpdaterEvent) {
+      const unsub = window.electronAPI.onUpdaterEvent('updater-available', (info: any) => {
+        if (info?.version) {
+          setUpdateInfo({
+            version: info.version.startsWith('v') ? info.version : `v${info.version}`,
+            releaseNotes: info.releaseNotes,
+            isPackagedElectron: true,
+          });
+          setIsUpdateBannerDismissed(false);
+        }
+      });
+      return () => unsub?.();
+    }
+  }, [handleCheckForUpdates]);
 
   // Load initial data
   useEffect(() => {
@@ -674,10 +737,53 @@ export function App() {
         }}
         isSaved={isSaved}
         data={data}
+        updateAvailable={Boolean(updateInfo)}
+        onOpenUpdateModal={() => setIsUpdateModalOpen(true)}
       />
 
       <main className="flex-1 h-screen overflow-y-auto p-6 sm:p-8 bg-slate-50/80">
         <div className="max-w-[1500px] w-full mx-auto space-y-6">
+          {/* Top Update Notification Banner */}
+          {updateInfo && !isUpdateBannerDismissed && (
+            <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-700 text-white p-4 sm:p-5 rounded-3xl shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-emerald-400/30 animate-fadeIn">
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shadow-inner shrink-0">
+                  <Sparkles className="w-5 h-5 text-emerald-200 animate-pulse" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-black text-sm text-white">
+                      Nova Versão Disponível: {updateInfo.version}
+                    </h4>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-200 border border-emerald-400/30 text-[10px] font-black">
+                      Atualização Oficial
+                    </span>
+                  </div>
+                  <p className="text-xs text-emerald-100 font-medium mt-0.5">
+                    Novas funcionalidades, otimizações e melhorias no FinanPro Suite prontas para você.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 self-end sm:self-center">
+                <button
+                  type="button"
+                  onClick={() => setIsUpdateBannerDismissed(true)}
+                  className="px-3 py-1.5 text-xs text-emerald-100 hover:text-white hover:bg-white/10 rounded-xl transition-all"
+                >
+                  Agora Não
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsUpdateModalOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-emerald-50 text-emerald-950 font-black text-xs rounded-xl shadow-md transition-all active:scale-95"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
+                  <span>Ver Novidades & Atualizar</span>
+                </button>
+              </div>
+            </div>
+          )}
           {activeTab === 'dashboard' && (
             <Dashboard
               data={data}
@@ -833,6 +939,10 @@ export function App() {
               onDeleteCategory={handleDeleteCategory}
               onAddCard={handleAddCard}
               onDeleteCard={handleDeleteCard}
+              updateInfo={updateInfo}
+              onCheckUpdates={() => handleCheckForUpdates(true)}
+              isCheckingUpdates={isCheckingUpdates}
+              onOpenUpdateModal={() => setIsUpdateModalOpen(true)}
             />
           )}
         </div>
@@ -875,6 +985,12 @@ export function App() {
 
       {/* Auto-Update Notification Banner & Modal */}
       <UpdateNotification />
+      <UpdateModal
+        isOpen={isUpdateModalOpen}
+        onClose={() => setIsUpdateModalOpen(false)}
+        updateInfo={updateInfo}
+        currentVersion={CURRENT_APP_VERSION}
+      />
     </div>
   );
 }
