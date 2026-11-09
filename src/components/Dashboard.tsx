@@ -15,7 +15,9 @@ import {
   Clock,
   Sparkles,
   CreditCard,
-  ChevronRight
+  ChevronRight,
+  Car,
+  Target
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -123,6 +125,55 @@ export const Dashboard: React.FC<DashboardProps> = ({
       percentAmortizado,
     };
   }, [data.houseInstallments]);
+
+  // Interconnected Modules calculations (Veículos, Investimentos, Metas)
+  const vehicleStats = useMemo(() => {
+    const vehicles = data.vehicles || [];
+    const expenses = data.vehicleExpenses || [];
+    const monthlyExpenses = expenses
+      .filter((e) => selectedPeriod === 'all' || (e.date && e.date.startsWith(selectedPeriod)))
+      .reduce((sum, e) => sum + e.amount, 0);
+    const primaryVehicle = vehicles[0];
+    return {
+      count: vehicles.length,
+      monthlyExpenses,
+      primaryVehicle,
+    };
+  }, [data.vehicles, data.vehicleExpenses, selectedPeriod]);
+
+  const investmentStats = useMemo(() => {
+    const investments = data.investments || [];
+    const transactions = data.investmentTransactions || [];
+    const totalCurrent = investments.reduce((sum, a) => sum + (a.currentValue || 0), 0);
+    const totalInvested = investments.reduce((sum, a) => sum + (a.totalInvested || 0), 0);
+    const profit = totalCurrent - totalInvested;
+    const monthlyDividends = transactions
+      .filter(
+        (t) =>
+          (t.type === 'dividendo' || t.type === 'juros_capital') &&
+          (selectedPeriod === 'all' || (t.date && t.date.startsWith(selectedPeriod)))
+      )
+      .reduce((sum, t) => sum + t.amount, 0);
+    return {
+      count: investments.length,
+      totalCurrent,
+      profit,
+      monthlyDividends,
+    };
+  }, [data.investments, data.investmentTransactions, selectedPeriod]);
+
+  const goalStats = useMemo(() => {
+    const goals = data.goals || [];
+    const totalTarget = goals.reduce((sum, g) => sum + (g.targetAmount || 0), 0);
+    const totalCurrent = goals.reduce((sum, g) => sum + (g.currentAmount || 0), 0);
+    const percent = totalTarget > 0 ? (totalCurrent / totalTarget) * 100 : 0;
+    return {
+      count: goals.length,
+      totalCurrent,
+      totalTarget,
+      percent,
+    };
+  }, [data.goals]);
 
   // Chart data: Monthly comparison (Last 6 months)
   const monthlyChartData = useMemo(() => {
@@ -413,6 +464,109 @@ export const Dashboard: React.FC<DashboardProps> = ({
           )}
         </div>
       )}
+
+      {/* Ecosystem Interconnected Modules: Veículos, Investimentos, Metas */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        {/* Veículos Card */}
+        <div
+          onClick={() => onNavigateTab('veiculos')}
+          className="group relative overflow-hidden bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-blue-400 transition-all duration-300 cursor-pointer"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center transition-transform group-hover:scale-110">
+                <Car className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-extrabold text-slate-900 text-sm group-hover:text-blue-600 transition-colors">
+                  Veículos & Garagem
+                </h4>
+                <p className="text-[11px] text-slate-400">
+                  {vehicleStats.primaryVehicle
+                    ? `${vehicleStats.primaryVehicle.brand} ${vehicleStats.primaryVehicle.model}`
+                    : 'Nenhum veículo'}
+                </p>
+              </div>
+            </div>
+            {vehicleStats.primaryVehicle && (
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
+                {vehicleStats.primaryVehicle.currentKm?.toLocaleString('pt-BR')} KM
+              </span>
+            )}
+          </div>
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-baseline justify-between">
+            <span className="text-[11px] font-bold text-slate-400">Gastos no Período</span>
+            <span className="text-lg font-black text-slate-900">
+              {formatCurrency(vehicleStats.monthlyExpenses)}
+            </span>
+          </div>
+        </div>
+
+        {/* Investimentos Card */}
+        <div
+          onClick={() => onNavigateTab('investimentos')}
+          className="group relative overflow-hidden bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-emerald-400 transition-all duration-300 cursor-pointer"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center transition-transform group-hover:scale-110">
+                <TrendingUp className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-extrabold text-slate-900 text-sm group-hover:text-emerald-600 transition-colors">
+                  Investimentos
+                </h4>
+                <p className="text-[11px] text-slate-400">
+                  {investmentStats.count}{' '}
+                  {investmentStats.count === 1 ? 'ativo cadastrado' : 'ativos cadastrados'}
+                </p>
+              </div>
+            </div>
+            {investmentStats.monthlyDividends > 0 && (
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
+                +{formatCurrency(investmentStats.monthlyDividends)}
+              </span>
+            )}
+          </div>
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-baseline justify-between">
+            <span className="text-[11px] font-bold text-slate-400">Patrimônio Atual</span>
+            <span className="text-lg font-black text-slate-900">
+              {formatCurrency(investmentStats.totalCurrent)}
+            </span>
+          </div>
+        </div>
+
+        {/* Metas Card */}
+        <div
+          onClick={() => onNavigateTab('metas')}
+          className="group relative overflow-hidden bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-purple-400 transition-all duration-300 cursor-pointer"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center transition-transform group-hover:scale-110">
+                <Target className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-extrabold text-slate-900 text-sm group-hover:text-purple-600 transition-colors">
+                  Metas & Sonhos
+                </h4>
+                <p className="text-[11px] text-slate-400">
+                  {goalStats.count} {goalStats.count === 1 ? 'meta ativa' : 'metas ativas'}
+                </p>
+              </div>
+            </div>
+            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-purple-50 text-purple-700">
+              {goalStats.percent.toFixed(0)}% poupado
+            </span>
+          </div>
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-baseline justify-between">
+            <span className="text-[11px] font-bold text-slate-400">Total Acumulado</span>
+            <span className="text-lg font-black text-purple-900">
+              {formatCurrency(goalStats.totalCurrent)}
+            </span>
+          </div>
+        </div>
+      </div>
 
       {/* Visual Analytics Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

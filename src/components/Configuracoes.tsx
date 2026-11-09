@@ -28,9 +28,11 @@ import {
   Save,
   Car,
   TrendingUp,
+  RefreshCw,
   Target,
   BarChart3
 } from 'lucide-react';
+import { UpdateInfo } from '../services/updateService';
 
 interface ConfiguracoesProps {
   data: AppData;
@@ -39,6 +41,10 @@ interface ConfiguracoesProps {
   onDeleteCategory: (cat: string) => void;
   onAddCard: (card: CreditCardItem) => void;
   onDeleteCard: (id: string) => void;
+  updateInfo?: UpdateInfo | null;
+  onCheckUpdates?: () => void;
+  isCheckingUpdates?: boolean;
+  onOpenUpdateModal?: () => void;
 }
 
 const CARD_COLORS = [
@@ -57,6 +63,10 @@ export const Configuracoes: React.FC<ConfiguracoesProps> = ({
   onDeleteCategory,
   onAddCard,
   onDeleteCard,
+  updateInfo,
+  onCheckUpdates,
+  isCheckingUpdates,
+  onOpenUpdateModal,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'perfil' | 'modulos' | 'cartoes' | 'categorias' | 'backup'>('perfil');
 
@@ -541,38 +551,115 @@ export const Configuracoes: React.FC<ConfiguracoesProps> = ({
               />
             </div>
 
-            {/* Previews dos Módulos Próximos */}
-            <div className="p-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/20 flex items-center justify-between opacity-75">
+            {/* Veículos & Garagem */}
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-orange-500/20 text-orange-600 rounded-xl">
+                <div className="p-2.5 bg-sky-600 text-white rounded-xl">
                   <Car className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-bold text-slate-800 text-sm">Veículos & Financiamentos</h4>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 font-black">
-                      Sprint 3
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-400">IPVA, amortização SAC e custos operacionais.</p>
+                  <h4 className="font-bold text-slate-800 text-sm">Gestão de Veículos</h4>
+                  <p className="text-xs text-slate-400">Abastecimentos (km/L), manutenções, IPVA e seguro.</p>
                 </div>
               </div>
-              <span className="text-xs font-bold text-slate-400">Em Breve</span>
+              <input
+                type="checkbox"
+                checked={currentModules.veiculos !== false}
+                onChange={() => handleToggleModule('veiculos')}
+                className="w-5 h-5 accent-emerald-600 cursor-pointer rounded"
+              />
             </div>
 
-            <div className="p-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/20 flex items-center justify-between opacity-75">
+            {/* Simulador de Amortização */}
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-purple-500/20 text-purple-600 rounded-xl">
+                <div className="p-2.5 bg-indigo-600 text-white rounded-xl">
                   <TrendingUp className="w-5 h-5" />
                 </div>
                 <div>
+                  <h4 className="font-bold text-slate-800 text-sm">Simulador de Amortização</h4>
+                  <p className="text-xs text-slate-400">Quitação acelerada SAC/PRICE e economia em juros.</p>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={currentModules.amortizacao !== false}
+                onChange={() => handleToggleModule('amortizacao')}
+                className="w-5 h-5 accent-emerald-600 cursor-pointer rounded"
+              />
+            </div>
+
+            {/* Investimentos & Mercado */}
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-emerald-600 text-white rounded-xl">
+                  <TrendingUp className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-800 text-sm">Carteira de Investimentos</h4>
+                  <p className="text-xs text-slate-400">Renda Fixa, Ações, FIIs, Cripto e Proventos.</p>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={currentModules.investimentos !== false}
+                onChange={() => handleToggleModule('investimentos')}
+                className="w-5 h-5 accent-emerald-600 cursor-pointer rounded"
+              />
+            </div>
+
+            {/* Metas Financeiras */}
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-teal-600 text-white rounded-xl">
+                  <Target className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-800 text-sm">Metas Financeiras & Juros Compostos</h4>
+                  <p className="text-xs text-slate-400">Objetivos, reserva de emergência e cálculo de aportes.</p>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={currentModules.metas !== false}
+                onChange={() => handleToggleModule('metas')}
+                className="w-5 h-5 accent-emerald-600 cursor-pointer rounded"
+              />
+            </div>
+
+            {/* Visão Anual Consolidada (DRE) */}
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-purple-600 text-white rounded-xl">
+                  <BarChart3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-800 text-sm">Visão Anual & DRE (12 Meses)</h4>
+                  <p className="text-xs text-slate-400">Matriz lado a lado de receitas, custos e taxa de poupança.</p>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={currentModules.visaoAnual !== false}
+                onChange={() => handleToggleModule('visaoAnual')}
+                className="w-5 h-5 accent-emerald-600 cursor-pointer rounded"
+              />
+            </div>
+
+            {/* Previews dos Módulos Próximos */}
+            <div className="p-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/20 flex items-center justify-between opacity-75">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-indigo-500/20 text-indigo-600 rounded-xl">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
                   <div className="flex items-center gap-2">
-                    <h4 className="font-bold text-slate-800 text-sm">Investimentos & Mercado</h4>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 font-black">
-                      Sprint 4
+                    <h4 className="font-bold text-slate-800 text-sm">Sincronização em Nuvem & Licenças</h4>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 font-black">
+                      Sprint 5
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400">Ações, FIIs, Tesouro e Dividendos.</p>
+                  <p className="text-xs text-slate-400">Backup automático em nuvem e ativação comercial por chave.</p>
                 </div>
               </div>
               <span className="text-xs font-bold text-slate-400">Em Breve</span>
@@ -961,15 +1048,41 @@ export const Configuracoes: React.FC<ConfiguracoesProps> = ({
         </div>
       )}
 
-      {/* System info */}
-      <div className="p-4 rounded-2xl bg-slate-100 border border-slate-200 text-slate-600 text-xs space-y-1">
-        <div className="flex items-center gap-1.5 font-bold text-slate-800">
-          <Info className="w-4 h-4 text-indigo-600" /> Informações do Sistema
+      {/* System info & Updates */}
+      <div className="p-4 rounded-2xl bg-slate-100 border border-slate-200 text-slate-600 text-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 font-bold text-slate-800">
+            <Info className="w-4 h-4 text-indigo-600" /> Informações do Sistema
+          </div>
+          <p>• Software: {data.appSettings?.systemTitle || 'FinanPro Suite'} (v2.0.0 Modular)</p>
+          <p>• Titular: {data.appSettings?.userName || 'Meu Usuário'}</p>
+          <p>• Suporte Nativo: Linux e Windows (100% Portável & Local)</p>
+          <p>• Repositório: github.com/leooSsou/Sistema-financeiro</p>
         </div>
-        <p>• Software: {data.appSettings?.systemTitle || 'FinanPro Suite'} (v2.0 Modular)</p>
-        <p>• Titular: {data.appSettings?.userName || 'Meu Usuário'}</p>
-        <p>• Suporte Nativo: Linux e Windows (100% Portável & Local)</p>
-        <p>• Último salvamento automático: {data.appSettings?.lastSaved || 'Agora'}</p>
+
+        <div className="flex flex-col items-start md:items-end gap-2">
+          {updateInfo ? (
+            <button
+              onClick={onOpenUpdateModal}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 rounded-xl text-xs font-black shadow-md shadow-emerald-500/20 transition-all active:scale-95 animate-pulse"
+            >
+              <Sparkles className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>Nova Versão {updateInfo.version} Disponível!</span>
+            </button>
+          ) : (
+            <button
+              disabled={isCheckingUpdates}
+              onClick={onCheckUpdates}
+              className="flex items-center gap-2 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold shadow-sm transition-all active:scale-95 disabled:opacity-60"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${isCheckingUpdates ? 'animate-spin' : ''}`} />
+              <span>{isCheckingUpdates ? 'Verificando...' : 'Verificar Atualizações'}</span>
+            </button>
+          )}
+          <span className="text-[11px] text-slate-500">
+            Checagem automática ao iniciar
+          </span>
+        </div>
       </div>
     </div>
   );

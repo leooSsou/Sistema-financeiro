@@ -36,6 +36,13 @@ export interface Transaction {
   notes?: string;
   isRecurring?: boolean; // Para despesas fixas recorrentes
   externalId?: string; // ID único importado do banco (ex: FITID no OFX) para evitar duplicatas
+  vehicleId?: string; // Veículo vinculado
+  vehicleExpenseType?: VehicleExpenseType; // Tipo de gasto veicular (abastecimento, manutenção, etc.)
+  vehicleKm?: number; // Odômetro registrado na movimentação
+  vehicleLiters?: number; // Litros (se abastecimento)
+  vehiclePricePerLiter?: number; // Preço por litro
+  goalId?: string; // Meta financeira vinculada
+  investmentAssetId?: string; // Ativo de investimento vinculado
 }
 
 export interface CategoryBudget {
@@ -90,9 +97,121 @@ export interface EnabledModules {
   casa: boolean;
   orcamento?: boolean;
   veiculos?: boolean;
+  amortizacao?: boolean;
   investimentos?: boolean;
   metas?: boolean;
   visaoAnual?: boolean;
+}
+
+export type VehicleExpenseType =
+  | 'abastecimento'
+  | 'manutencao'
+  | 'ipva'
+  | 'seguro'
+  | 'licenciamento'
+  | 'multa'
+  | 'lavagem'
+  | 'outros';
+
+export interface VehicleExpense {
+  id: string;
+  vehicleId: string;
+  type: VehicleExpenseType;
+  date: string; // YYYY-MM-DD
+  amount: number;
+  currentKm?: number;
+  // Abastecimento
+  liters?: number;
+  pricePerLiter?: number;
+  fuelType?: 'gasolina' | 'etanol' | 'diesel' | 'gnv';
+  isFullTank?: boolean;
+  // Manutenção
+  serviceDescription?: string;
+  nextServiceKm?: number;
+  nextServiceDate?: string;
+  workshop?: string;
+  notes?: string;
+}
+
+export interface Vehicle {
+  id: string;
+  name: string; // ex: "Civic Touring" ou "HB20 Confort"
+  brand: string; // ex: "Honda"
+  model: string; // ex: "Civic"
+  year: number; // ex: 2022
+  plate?: string; // ex: "ABC-1D23"
+  color?: string; // ex: "#3b82f6"
+  currentKm: number;
+  fuelTypeDefault?: 'flex' | 'gasolina' | 'etanol' | 'diesel';
+  insuranceDueDate?: string; // YYYY-MM-DD
+  licenseDueDate?: string; // YYYY-MM-DD
+  notes?: string;
+}
+
+export interface OneTimeAmortization {
+  id: string;
+  monthIndex: number; // Mês do aporte (ex: mês 12, 24)
+  amount: number;
+  description?: string;
+}
+
+export interface AmortizationSimulation {
+  id: string;
+  title: string; // ex: "Financiamento Imobiliário Caixa"
+  financingType: 'SAC' | 'PRICE';
+  financedAmount: number; // Saldo devedor ou valor financiado
+  annualInterestRate: number; // % ao ano (ex: 9.9)
+  totalMonths: number; // Prazo original em meses (ex: 360)
+  monthlyExtraAmortization: number; // Aporte extra todo mês (ex: 500)
+  amortizationStrategy: 'prazo' | 'parcela'; // Reduzir prazo ou valor da parcela
+  startDate?: string; // YYYY-MM
+  oneTimeAmortizations?: OneTimeAmortization[];
+  notes?: string;
+}
+
+// Sprint 4: Investimentos, Metas & Visão Anual
+export type AssetType =
+  | 'renda_fixa'
+  | 'acoes'
+  | 'fiis'
+  | 'cripto'
+  | 'fundos'
+  | 'outros';
+
+export interface InvestmentAsset {
+  id: string;
+  name: string; // ex: "Tesouro Selic 2029", "ITUB4", "MXRF11", "CDB 110% CDI"
+  ticker?: string;
+  type: AssetType;
+  institution: string; // ex: "XP", "BTG", "Nubank", "Inter"
+  totalInvested: number; // Valor aportado (custo)
+  currentValue: number; // Valor atualizado de mercado
+  quantity?: number;
+  averagePrice?: number;
+  annualExpectedReturn?: number; // % a.a. estimado
+  notes?: string;
+}
+
+export interface InvestmentTransaction {
+  id: string;
+  assetId: string;
+  date: string; // YYYY-MM-DD
+  type: 'aporte' | 'resgate' | 'dividendo' | 'juros_capital';
+  amount: number;
+  quantity?: number;
+  pricePerUnit?: number;
+  notes?: string;
+}
+
+export interface FinancialGoal {
+  id: string;
+  title: string; // ex: "Reserva de Emergência", "Viagem", "Imóvel"
+  category: string;
+  targetAmount: number;
+  currentAmount: number;
+  deadlineDate: string; // YYYY-MM-DD
+  color?: string;
+  notes?: string;
 }
 
 export interface AppSettings {
@@ -115,6 +234,12 @@ export interface AppData {
   bankAccounts?: BankAccount[];
   categoryBudgets?: CategoryBudget[];
   recurringTransactions?: RecurringTransaction[];
+  vehicles?: Vehicle[];
+  vehicleExpenses?: VehicleExpense[];
+  amortizationSimulations?: AmortizationSimulation[];
+  investments?: InvestmentAsset[];
+  investmentTransactions?: InvestmentTransaction[];
+  goals?: FinancialGoal[];
   monthlyNotes?: Record<string, string>; // Observações de cada mês (ex: "2026-11": "Texto das notas...")
   appSettings: AppSettings;
 }

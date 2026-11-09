@@ -26,6 +26,8 @@ interface SidebarProps {
   onOpenNewTx: () => void;
   isSaved: boolean;
   data: AppData;
+  updateAvailable?: boolean;
+  onOpenUpdateModal?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -34,6 +36,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenNewTx,
   isSaved,
   data,
+  updateAvailable,
+  onOpenUpdateModal,
 }) => {
   const settings = data.appSettings || {
     userName: 'Meu Usuário',
@@ -131,6 +135,53 @@ export const Sidebar: React.FC<SidebarProps> = ({
         },
       ].filter(Boolean) as any[],
     },
+    // Patrimônio & Financiamentos (Veículos & Simulador de Amortização)
+    (modules.veiculos !== false || modules.amortizacao !== false) && {
+      section: 'PATRIMÔNIO & FINANCIAMENTOS',
+      items: [
+        modules.veiculos !== false && {
+          id: 'veiculos',
+          label: 'Meus Veículos',
+          icon: Car,
+          badge: data.vehicles && data.vehicles.length > 0 ? `${data.vehicles.length}` : null,
+          badgeColor: 'bg-sky-500/20 text-sky-300 border-sky-500/30',
+        },
+        modules.amortizacao !== false && {
+          id: 'amortizacao',
+          label: 'Simulador Amortização',
+          icon: TrendingUp,
+          badge: 'SAC/PRICE',
+          badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+        },
+      ].filter(Boolean) as any[],
+    },
+    // Investimentos, Metas & DRE Anual (Sprint 4)
+    (modules.investimentos !== false || modules.metas !== false || modules.visaoAnual !== false) && {
+      section: 'INVESTIMENTOS & FUTURO',
+      items: [
+        modules.investimentos !== false && {
+          id: 'investimentos',
+          label: 'Investimentos',
+          icon: TrendingUp,
+          badge: data.investments && data.investments.length > 0 ? `${data.investments.length}` : null,
+          badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+        },
+        modules.metas !== false && {
+          id: 'metas',
+          label: 'Metas Financeiras',
+          icon: Target,
+          badge: data.goals && data.goals.length > 0 ? `${data.goals.length}` : null,
+          badgeColor: 'bg-teal-500/20 text-teal-300 border-teal-500/30',
+        },
+        modules.visaoAnual !== false && {
+          id: 'visaoAnual',
+          label: 'Visão Anual DRE',
+          icon: BarChart3,
+          badge: '12M',
+          badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+        },
+      ].filter(Boolean) as any[],
+    },
     {
       section: 'SISTEMA',
       items: [
@@ -138,7 +189,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           id: 'config',
           label: 'Ajustes & Módulos',
           icon: Settings,
-          badge: data.creditCards && data.creditCards.length > 0 ? `${data.creditCards.length} cartões` : null,
+          badge: updateAvailable
+            ? 'Update!'
+            : data.creditCards && data.creditCards.length > 0
+            ? `${data.creditCards.length} cartões`
+            : null,
+          badgeColor: updateAvailable ? 'bg-emerald-400 text-slate-950 font-black animate-pulse' : undefined,
         },
       ],
     },
@@ -161,6 +217,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span className="text-[11px] text-slate-400 font-medium block truncate">
               {settings.userName || 'Controle Pessoal'}
             </span>
+            {updateAvailable && (
+              <button
+                type="button"
+                onClick={onOpenUpdateModal}
+                className="mt-1.5 flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[10px] font-black transition-all animate-pulse"
+              >
+                <Sparkles className="w-3 h-3 text-emerald-300 shrink-0" />
+                <span>Atualização Disponível</span>
+              </button>
+            )}
           </div>
         </div>
 
