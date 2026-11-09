@@ -162,6 +162,51 @@ export interface AmortizationSimulation {
   notes?: string;
 }
 
+// Sprint 4: Investimentos, Metas & Visão Anual
+export type AssetType =
+  | 'renda_fixa'
+  | 'acoes'
+  | 'fiis'
+  | 'cripto'
+  | 'fundos'
+  | 'outros';
+
+export interface InvestmentAsset {
+  id: string;
+  name: string; // ex: "Tesouro Selic 2029", "ITUB4", "MXRF11", "CDB 110% CDI"
+  ticker?: string;
+  type: AssetType;
+  institution: string; // ex: "XP", "BTG", "Nubank", "Inter"
+  totalInvested: number; // Valor aportado (custo)
+  currentValue: number; // Valor atualizado de mercado
+  quantity?: number;
+  averagePrice?: number;
+  annualExpectedReturn?: number; // % a.a. estimado
+  notes?: string;
+}
+
+export interface InvestmentTransaction {
+  id: string;
+  assetId: string;
+  date: string; // YYYY-MM-DD
+  type: 'aporte' | 'resgate' | 'dividendo' | 'juros_capital';
+  amount: number;
+  quantity?: number;
+  pricePerUnit?: number;
+  notes?: string;
+}
+
+export interface FinancialGoal {
+  id: string;
+  title: string; // ex: "Reserva de Emergência", "Viagem", "Imóvel"
+  category: string;
+  targetAmount: number;
+  currentAmount: number;
+  deadlineDate: string; // YYYY-MM-DD
+  color?: string;
+  notes?: string;
+}
+
 export interface AppSettings {
   userName: string;
   systemTitle: string;
@@ -185,6 +230,9 @@ export interface AppData {
   vehicles?: Vehicle[];
   vehicleExpenses?: VehicleExpense[];
   amortizationSimulations?: AmortizationSimulation[];
+  investments?: InvestmentAsset[];
+  investmentTransactions?: InvestmentTransaction[];
+  goals?: FinancialGoal[];
   monthlyNotes?: Record<string, string>; // Observações de cada mês (ex: "2026-11": "Texto das notas...")
   appSettings: AppSettings;
 }

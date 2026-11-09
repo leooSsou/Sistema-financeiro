@@ -151,6 +151,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
         },
       ].filter(Boolean) as any[],
     },
+    // Investimentos, Metas & DRE Anual (Sprint 4)
+    (modules.investimentos !== false || modules.metas !== false || modules.visaoAnual !== false) && {
+      section: 'INVESTIMENTOS & FUTURO',
+      items: [
+        modules.investimentos !== false && {
+          id: 'investimentos',
+          label: 'Investimentos',
+          icon: TrendingUp,
+          badge: data.investments && data.investments.length > 0 ? `${data.investments.length}` : null,
+          badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+        },
+        modules.metas !== false && {
+          id: 'metas',
+          label: 'Metas Financeiras',
+          icon: Target,
+          badge: data.goals && data.goals.length > 0 ? `${data.goals.length}` : null,
+          badgeColor: 'bg-teal-500/20 text-teal-300 border-teal-500/30',
+        },
+        modules.visaoAnual !== false && {
+          id: 'visaoAnual',
+          label: 'Visão Anual DRE',
+          icon: BarChart3,
+          badge: '12M',
+          badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+        },
+      ].filter(Boolean) as any[],
+    },
     {
       section: 'SISTEMA',
       items: [

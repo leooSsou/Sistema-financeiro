@@ -39,6 +39,9 @@ const defaultData = {
   vehicles: [],
   vehicleExpenses: [],
   amortizationSimulations: [],
+  investments: [],
+  investmentTransactions: [],
+  goals: [],
   categories: [
     'Salário / Renda',
     'Renda Extra',

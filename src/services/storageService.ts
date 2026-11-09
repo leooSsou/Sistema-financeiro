@@ -50,6 +50,9 @@ const defaultInitialData: AppData = {
   vehicles: [],
   vehicleExpenses: [],
   amortizationSimulations: [],
+  investments: [],
+  investmentTransactions: [],
+  goals: [],
   monthlyNotes: {},
   categories: [
     'Salário / Renda',
@@ -114,6 +117,9 @@ const normalizeData = (data: AppData): AppData => {
   data.vehicles = data.vehicles || [];
   data.vehicleExpenses = data.vehicleExpenses || [];
   data.amortizationSimulations = data.amortizationSimulations || [];
+  data.investments = data.investments || [];
+  data.investmentTransactions = data.investmentTransactions || [];
+  data.goals = data.goals || [];
   if (!data.appSettings) {
     data.appSettings = {
       userName: 'Meu Usuário',
@@ -400,6 +406,36 @@ export const storageService = {
       }));
       const wsSim = XLSX.utils.json_to_sheet(simData);
       XLSX.utils.book_append_sheet(wb, wsSim, 'Simulações Amortização');
+    }
+
+    // 9. Sheet Investimentos
+    if (data.investments && data.investments.length > 0) {
+      const invData = data.investments.map((a) => ({
+        Nome: a.name,
+        Ticker: a.ticker || '',
+        Tipo: a.type,
+        Instituição: a.institution,
+        'Total Aportado (R$)': a.totalInvested,
+        'Valor Atual (R$)': a.currentValue,
+        'Lucro/Prejuízo (R$)': a.currentValue - a.totalInvested,
+        'Rentabilidade Estimada (%)': a.annualExpectedReturn || ''
+      }));
+      const wsInv = XLSX.utils.json_to_sheet(invData);
+      XLSX.utils.book_append_sheet(wb, wsInv, 'Investimentos');
+    }
+
+    // 10. Sheet Metas Financeiras
+    if (data.goals && data.goals.length > 0) {
+      const goalsData = data.goals.map((g) => ({
+        Meta: g.title,
+        Categoria: g.category,
+        'Valor Alvo (R$)': g.targetAmount,
+        'Valor Acumulado (R$)': g.currentAmount,
+        'Progresso (%)': `${((g.currentAmount / g.targetAmount) * 100).toFixed(1)}%`,
+        'Data Limite': g.deadlineDate
+      }));
+      const wsGoals = XLSX.utils.json_to_sheet(goalsData);
+      XLSX.utils.book_append_sheet(wb, wsGoals, 'Metas Financeiras');
     }
 
     const titlePrefix = data.appSettings?.systemTitle?.replace(/\s+/g, '_') || 'FinanPro';

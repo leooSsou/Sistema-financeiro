@@ -580,20 +580,77 @@ export const Configuracoes: React.FC<ConfiguracoesProps> = ({
               />
             </div>
 
-            {/* Previews dos Módulos Próximos */}
-            <div className="p-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/20 flex items-center justify-between opacity-75">
+            {/* Investimentos & Mercado */}
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-purple-500/20 text-purple-600 rounded-xl">
+                <div className="p-2.5 bg-emerald-600 text-white rounded-xl">
                   <TrendingUp className="w-5 h-5" />
                 </div>
                 <div>
+                  <h4 className="font-bold text-slate-800 text-sm">Carteira de Investimentos</h4>
+                  <p className="text-xs text-slate-400">Renda Fixa, Ações, FIIs, Cripto e Proventos.</p>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={currentModules.investimentos !== false}
+                onChange={() => handleToggleModule('investimentos')}
+                className="w-5 h-5 accent-emerald-600 cursor-pointer rounded"
+              />
+            </div>
+
+            {/* Metas Financeiras */}
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-teal-600 text-white rounded-xl">
+                  <Target className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-800 text-sm">Metas Financeiras & Juros Compostos</h4>
+                  <p className="text-xs text-slate-400">Objetivos, reserva de emergência e cálculo de aportes.</p>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={currentModules.metas !== false}
+                onChange={() => handleToggleModule('metas')}
+                className="w-5 h-5 accent-emerald-600 cursor-pointer rounded"
+              />
+            </div>
+
+            {/* Visão Anual Consolidada (DRE) */}
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-purple-600 text-white rounded-xl">
+                  <BarChart3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-800 text-sm">Visão Anual & DRE (12 Meses)</h4>
+                  <p className="text-xs text-slate-400">Matriz lado a lado de receitas, custos e taxa de poupança.</p>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={currentModules.visaoAnual !== false}
+                onChange={() => handleToggleModule('visaoAnual')}
+                className="w-5 h-5 accent-emerald-600 cursor-pointer rounded"
+              />
+            </div>
+
+            {/* Previews dos Módulos Próximos */}
+            <div className="p-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/20 flex items-center justify-between opacity-75">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-indigo-500/20 text-indigo-600 rounded-xl">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
                   <div className="flex items-center gap-2">
-                    <h4 className="font-bold text-slate-800 text-sm">Investimentos & Mercado</h4>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 font-black">
-                      Sprint 4
+                    <h4 className="font-bold text-slate-800 text-sm">Sincronização em Nuvem & Licenças</h4>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 font-black">
+                      Sprint 5
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400">Ações, FIIs, Tesouro e Dividendos.</p>
+                  <p className="text-xs text-slate-400">Backup automático em nuvem e ativação comercial por chave.</p>
                 </div>
               </div>
               <span className="text-xs font-bold text-slate-400">Em Breve</span>

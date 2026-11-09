@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { AppData, Transaction, ObraEntry, HouseInstallment, CreditCardItem, BankAccount, PaymentStatus, CategoryBudget, RecurringTransaction, Vehicle, VehicleExpense, AmortizationSimulation } from './types/finance';
+import { AppData, Transaction, ObraEntry, HouseInstallment, CreditCardItem, BankAccount, PaymentStatus, CategoryBudget, RecurringTransaction, Vehicle, VehicleExpense, AmortizationSimulation, InvestmentAsset, InvestmentTransaction, FinancialGoal } from './types/finance';
 import { storageService } from './services/storageService';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './components/Dashboard';
@@ -10,6 +10,9 @@ import { ContasBancarias } from './components/ContasBancarias';
 import { OrcamentoTeto } from './components/OrcamentoTeto';
 import { Veiculos } from './components/Veiculos';
 import { SimuladorAmortizacao } from './components/SimuladorAmortizacao';
+import { Investimentos } from './components/Investimentos';
+import { MetasFinanceiras } from './components/MetasFinanceiras';
+import { VisaoAnual } from './components/VisaoAnual';
 import { Configuracoes } from './components/Configuracoes';
 import { TransactionModal } from './components/TransactionModal';
 import { ObraModal } from './components/ObraModal';
@@ -400,6 +403,51 @@ export function App() {
     persist({ ...data, amortizationSimulations: updated });
   };
 
+  // Investments Handlers
+  const handleSaveInvestmentAsset = (asset: InvestmentAsset) => {
+    if (!data) return;
+    const current = data.investments || [];
+    const exists = current.some((a) => a.id === asset.id);
+    const updated = exists ? current.map((a) => (a.id === asset.id ? asset : a)) : [...current, asset];
+    persist({ ...data, investments: updated });
+  };
+
+  const handleDeleteInvestmentAsset = (id: string) => {
+    if (!data) return;
+    const updated = (data.investments || []).filter((a) => a.id !== id);
+    const updatedTx = (data.investmentTransactions || []).filter((t) => t.assetId !== id);
+    persist({ ...data, investments: updated, investmentTransactions: updatedTx });
+  };
+
+  const handleSaveInvestmentTx = (tx: InvestmentTransaction) => {
+    if (!data) return;
+    const current = data.investmentTransactions || [];
+    const exists = current.some((t) => t.id === tx.id);
+    const updated = exists ? current.map((t) => (t.id === tx.id ? tx : t)) : [tx, ...current];
+    persist({ ...data, investmentTransactions: updated });
+  };
+
+  const handleDeleteInvestmentTx = (id: string) => {
+    if (!data) return;
+    const updated = (data.investmentTransactions || []).filter((t) => t.id !== id);
+    persist({ ...data, investmentTransactions: updated });
+  };
+
+  // Goals Handlers
+  const handleSaveGoal = (goal: FinancialGoal) => {
+    if (!data) return;
+    const current = data.goals || [];
+    const exists = current.some((g) => g.id === goal.id);
+    const updated = exists ? current.map((g) => (g.id === goal.id ? goal : g)) : [...current, goal];
+    persist({ ...data, goals: updated });
+  };
+
+  const handleDeleteGoal = (id: string) => {
+    if (!data) return;
+    const updated = (data.goals || []).filter((g) => g.id !== id);
+    persist({ ...data, goals: updated });
+  };
+
   return (
     <div className="h-screen w-screen overflow-hidden flex bg-slate-50 font-sans text-slate-800">
       <Sidebar
@@ -530,6 +578,32 @@ export function App() {
               simulations={data.amortizationSimulations || []}
               onSaveSimulation={handleSaveSimulation}
               onDeleteSimulation={handleDeleteSimulation}
+            />
+          )}
+
+          {activeTab === 'investimentos' && (
+            <Investimentos
+              investments={data.investments || []}
+              transactions={data.investmentTransactions || []}
+              onSaveAsset={handleSaveInvestmentAsset}
+              onDeleteAsset={handleDeleteInvestmentAsset}
+              onSaveTx={handleSaveInvestmentTx}
+              onDeleteTx={handleDeleteInvestmentTx}
+            />
+          )}
+
+          {activeTab === 'metas' && (
+            <MetasFinanceiras
+              goals={data.goals || []}
+              onSaveGoal={handleSaveGoal}
+              onDeleteGoal={handleDeleteGoal}
+            />
+          )}
+
+          {activeTab === 'visaoAnual' && (
+            <VisaoAnual
+              transactions={data.transactions}
+              categories={data.categories}
             />
           )}
 
