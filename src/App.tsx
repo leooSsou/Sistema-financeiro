@@ -655,8 +655,33 @@ export function App() {
       updatedTxList = [newTx, ...updatedTxList];
     }
 
+    let updatedInvestments = [...(data.investments || [])];
+    if (targetAsset) {
+      if (tx.type === 'aporte') {
+        updatedInvestments = updatedInvestments.map((a) =>
+          a.id === tx.assetId
+            ? {
+                ...a,
+                totalInvested: Number((a.totalInvested + tx.amount).toFixed(2)),
+                currentValue: Number((a.currentValue + tx.amount).toFixed(2)),
+              }
+            : a
+        );
+      } else if (tx.type === 'resgate') {
+        updatedInvestments = updatedInvestments.map((a) =>
+          a.id === tx.assetId
+            ? {
+                ...a,
+                currentValue: Number(Math.max(0, a.currentValue - tx.amount).toFixed(2)),
+              }
+            : a
+        );
+      }
+    }
+
     persist({
       ...data,
+      investments: updatedInvestments,
       investmentTransactions: updated,
       transactions: updatedTxList,
     });
