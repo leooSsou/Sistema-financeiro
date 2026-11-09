@@ -36,6 +36,9 @@ const defaultData = {
     },
   ],
   monthlyNotes: {},
+  vehicles: [],
+  vehicleExpenses: [],
+  amortizationSimulations: [],
   categories: [
     'Salário / Renda',
     'Renda Extra',

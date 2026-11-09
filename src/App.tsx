@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { AppData, Transaction, ObraEntry, HouseInstallment, CreditCardItem, BankAccount, PaymentStatus, CategoryBudget, RecurringTransaction } from './types/finance';
+import { AppData, Transaction, ObraEntry, HouseInstallment, CreditCardItem, BankAccount, PaymentStatus, CategoryBudget, RecurringTransaction, Vehicle, VehicleExpense, AmortizationSimulation } from './types/finance';
 import { storageService } from './services/storageService';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './components/Dashboard';
@@ -8,6 +8,8 @@ import { EvolucaoObra } from './components/EvolucaoObra';
 import { CasaParcelamentos } from './components/CasaParcelamentos';
 import { ContasBancarias } from './components/ContasBancarias';
 import { OrcamentoTeto } from './components/OrcamentoTeto';
+import { Veiculos } from './components/Veiculos';
+import { SimuladorAmortizacao } from './components/SimuladorAmortizacao';
 import { Configuracoes } from './components/Configuracoes';
 import { TransactionModal } from './components/TransactionModal';
 import { ObraModal } from './components/ObraModal';
@@ -353,6 +355,51 @@ export function App() {
     });
   };
 
+  // Vehicles Handlers
+  const handleSaveVehicle = (veh: Vehicle) => {
+    if (!data) return;
+    const current = data.vehicles || [];
+    const exists = current.some((v) => v.id === veh.id);
+    const updated = exists ? current.map((v) => (v.id === veh.id ? veh : v)) : [...current, veh];
+    persist({ ...data, vehicles: updated });
+  };
+
+  const handleDeleteVehicle = (id: string) => {
+    if (!data) return;
+    const updated = (data.vehicles || []).filter((v) => v.id !== id);
+    const updatedExpenses = (data.vehicleExpenses || []).filter((e) => e.vehicleId !== id);
+    persist({ ...data, vehicles: updated, vehicleExpenses: updatedExpenses });
+  };
+
+  const handleSaveVehicleExpense = (exp: VehicleExpense) => {
+    if (!data) return;
+    const current = data.vehicleExpenses || [];
+    const exists = current.some((e) => e.id === exp.id);
+    const updated = exists ? current.map((e) => (e.id === exp.id ? exp : e)) : [exp, ...current];
+    persist({ ...data, vehicleExpenses: updated });
+  };
+
+  const handleDeleteVehicleExpense = (id: string) => {
+    if (!data) return;
+    const updated = (data.vehicleExpenses || []).filter((e) => e.id !== id);
+    persist({ ...data, vehicleExpenses: updated });
+  };
+
+  // Amortization Handlers
+  const handleSaveSimulation = (sim: AmortizationSimulation) => {
+    if (!data) return;
+    const current = data.amortizationSimulations || [];
+    const exists = current.some((s) => s.id === sim.id);
+    const updated = exists ? current.map((s) => (s.id === sim.id ? sim : s)) : [...current, sim];
+    persist({ ...data, amortizationSimulations: updated });
+  };
+
+  const handleDeleteSimulation = (id: string) => {
+    if (!data) return;
+    const updated = (data.amortizationSimulations || []).filter((s) => s.id !== id);
+    persist({ ...data, amortizationSimulations: updated });
+  };
+
   return (
     <div className="h-screen w-screen overflow-hidden flex bg-slate-50 font-sans text-slate-800">
       <Sidebar
@@ -464,6 +511,25 @@ export function App() {
               onDeleteInstallment={handleDeleteInstallment}
               onPayNextInstallment={handlePayNextInstallment}
               onUndoInstallment={handleUndoInstallment}
+            />
+          )}
+
+          {activeTab === 'veiculos' && (
+            <Veiculos
+              vehicles={data.vehicles || []}
+              expenses={data.vehicleExpenses || []}
+              onSaveVehicle={handleSaveVehicle}
+              onDeleteVehicle={handleDeleteVehicle}
+              onSaveExpense={handleSaveVehicleExpense}
+              onDeleteExpense={handleDeleteVehicleExpense}
+            />
+          )}
+
+          {activeTab === 'amortizacao' && (
+            <SimuladorAmortizacao
+              simulations={data.amortizationSimulations || []}
+              onSaveSimulation={handleSaveSimulation}
+              onDeleteSimulation={handleDeleteSimulation}
             />
           )}
 

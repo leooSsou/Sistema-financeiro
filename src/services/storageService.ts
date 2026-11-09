@@ -47,6 +47,9 @@ const defaultInitialData: AppData = {
   ],
   categoryBudgets: [],
   recurringTransactions: [],
+  vehicles: [],
+  vehicleExpenses: [],
+  amortizationSimulations: [],
   monthlyNotes: {},
   categories: [
     'Salário / Renda',
@@ -75,6 +78,7 @@ const defaultInitialData: AppData = {
       obra: true,
       casa: true,
       veiculos: true,
+      amortizacao: true,
       investimentos: true,
       metas: true,
       orcamento: true,
@@ -107,6 +111,9 @@ const normalizeData = (data: AppData): AppData => {
   data.monthlyNotes = data.monthlyNotes || {};
   data.categoryBudgets = data.categoryBudgets || [];
   data.recurringTransactions = data.recurringTransactions || [];
+  data.vehicles = data.vehicles || [];
+  data.vehicleExpenses = data.vehicleExpenses || [];
+  data.amortizationSimulations = data.amortizationSimulations || [];
   if (!data.appSettings) {
     data.appSettings = {
       userName: 'Meu Usuário',
@@ -122,6 +129,7 @@ const normalizeData = (data: AppData): AppData => {
         obra: true,
         casa: true,
         veiculos: true,
+        amortizacao: true,
         investimentos: true,
         metas: true,
         orcamento: true,
@@ -140,6 +148,7 @@ const normalizeData = (data: AppData): AppData => {
         obra: true,
         casa: true,
         veiculos: true,
+        amortizacao: true,
         investimentos: true,
         metas: true,
         orcamento: true,
@@ -341,6 +350,59 @@ export const storageService = {
       XLSX.utils.book_append_sheet(wb, wsNotes, 'Anotações Mensais');
     }
 
-    XLSX.writeFile(wb, `Controle_Financeiro_Gabi_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    // 6. Sheet Veículos
+    if (data.vehicles && data.vehicles.length > 0) {
+      const vehData = data.vehicles.map((v) => ({
+        Nome: v.name,
+        Marca: v.brand,
+        Modelo: v.model,
+        Ano: v.year,
+        Placa: v.plate || '',
+        'KM Atual': v.currentKm,
+        'Vencimento Seguro': v.insuranceDueDate || '',
+        'Vencimento Licenciamento': v.licenseDueDate || ''
+      }));
+      const wsVeh = XLSX.utils.json_to_sheet(vehData);
+      XLSX.utils.book_append_sheet(wb, wsVeh, 'Veículos');
+    }
+
+    // 7. Sheet Despesas de Veículos
+    if (data.vehicleExpenses && data.vehicleExpenses.length > 0) {
+      const vExpData = data.vehicleExpenses.map((e) => {
+        const v = data.vehicles?.find((veh) => veh.id === e.vehicleId);
+        return {
+          Data: e.date,
+          Veículo: v ? v.name : 'Desconhecido',
+          Tipo: e.type,
+          'Valor (R$)': e.amount,
+          Odômetro: e.currentKm || '',
+          Litros: e.liters || '',
+          'Preço/L': e.pricePerLiter || '',
+          'Serviço / Manutenção': e.serviceDescription || '',
+          Oficina: e.workshop || '',
+          Observações: e.notes || ''
+        };
+      });
+      const wsVExp = XLSX.utils.json_to_sheet(vExpData);
+      XLSX.utils.book_append_sheet(wb, wsVExp, 'Despesas Veiculares');
+    }
+
+    // 8. Sheet Simulações de Amortização
+    if (data.amortizationSimulations && data.amortizationSimulations.length > 0) {
+      const simData = data.amortizationSimulations.map((s) => ({
+        Título: s.title,
+        Sistema: s.financingType,
+        'Valor Financiado (R$)': s.financedAmount,
+        'Taxa Anual (%)': s.annualInterestRate,
+        'Prazo Original (Meses)': s.totalMonths,
+        'Aporte Extra Mensal (R$)': s.monthlyExtraAmortization,
+        Estratégia: s.amortizationStrategy
+      }));
+      const wsSim = XLSX.utils.json_to_sheet(simData);
+      XLSX.utils.book_append_sheet(wb, wsSim, 'Simulações Amortização');
+    }
+
+    const titlePrefix = data.appSettings?.systemTitle?.replace(/\s+/g, '_') || 'FinanPro';
+    XLSX.writeFile(wb, `${titlePrefix}_Backup_${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 };

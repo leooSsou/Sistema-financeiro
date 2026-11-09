@@ -542,25 +542,45 @@ export const Configuracoes: React.FC<ConfiguracoesProps> = ({
               />
             </div>
 
-            {/* Previews dos Módulos Próximos */}
-            <div className="p-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/20 flex items-center justify-between opacity-75">
+            {/* Veículos & Garagem */}
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-orange-500/20 text-orange-600 rounded-xl">
+                <div className="p-2.5 bg-sky-600 text-white rounded-xl">
                   <Car className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-bold text-slate-800 text-sm">Veículos & Financiamentos</h4>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 font-black">
-                      Sprint 3
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-400">IPVA, amortização SAC e custos operacionais.</p>
+                  <h4 className="font-bold text-slate-800 text-sm">Gestão de Veículos</h4>
+                  <p className="text-xs text-slate-400">Abastecimentos (km/L), manutenções, IPVA e seguro.</p>
                 </div>
               </div>
-              <span className="text-xs font-bold text-slate-400">Em Breve</span>
+              <input
+                type="checkbox"
+                checked={currentModules.veiculos !== false}
+                onChange={() => handleToggleModule('veiculos')}
+                className="w-5 h-5 accent-emerald-600 cursor-pointer rounded"
+              />
             </div>
 
+            {/* Simulador de Amortização */}
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-indigo-600 text-white rounded-xl">
+                  <TrendingUp className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-800 text-sm">Simulador de Amortização</h4>
+                  <p className="text-xs text-slate-400">Quitação acelerada SAC/PRICE e economia em juros.</p>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={currentModules.amortizacao !== false}
+                onChange={() => handleToggleModule('amortizacao')}
+                className="w-5 h-5 accent-emerald-600 cursor-pointer rounded"
+              />
+            </div>
+
+            {/* Previews dos Módulos Próximos */}
             <div className="p-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/20 flex items-center justify-between opacity-75">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-purple-500/20 text-purple-600 rounded-xl">

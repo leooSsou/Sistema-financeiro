@@ -131,6 +131,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
         },
       ].filter(Boolean) as any[],
     },
+    // Patrimônio & Financiamentos (Veículos & Simulador de Amortização)
+    (modules.veiculos !== false || modules.amortizacao !== false) && {
+      section: 'PATRIMÔNIO & FINANCIAMENTOS',
+      items: [
+        modules.veiculos !== false && {
+          id: 'veiculos',
+          label: 'Meus Veículos',
+          icon: Car,
+          badge: data.vehicles && data.vehicles.length > 0 ? `${data.vehicles.length}` : null,
+          badgeColor: 'bg-sky-500/20 text-sky-300 border-sky-500/30',
+        },
+        modules.amortizacao !== false && {
+          id: 'amortizacao',
+          label: 'Simulador Amortização',
+          icon: TrendingUp,
+          badge: 'SAC/PRICE',
+          badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+        },
+      ].filter(Boolean) as any[],
+    },
     {
       section: 'SISTEMA',
       items: [
