@@ -60,10 +60,13 @@ export function App() {
     );
   }
 
-  // Transaction Handlers
+  // Transaction Handlers with Full Cross-Module Sync
   const handleSaveTransaction = (transactionOrList: Transaction | Transaction[]) => {
+    if (!data) return;
     const newItems = Array.isArray(transactionOrList) ? transactionOrList : [transactionOrList];
     let updatedTxList = [...data.transactions];
+    let updatedExpenses = [...(data.vehicleExpenses || [])];
+    let updatedVehicles = [...(data.vehicles || [])];
 
     newItems.forEach((item) => {
       const existingIndex = updatedTxList.findIndex((t) => t.id === item.id);
@@ -72,20 +75,63 @@ export function App() {
       } else {
         updatedTxList = [item, ...updatedTxList];
       }
+
+      // INTEGRATION: If transaction is linked to a vehicle, sync with VehicleExpenses & Odometer
+      if (item.vehicleId && item.type === 'saida') {
+        const expId = `vexp-tx-${item.id}`;
+        const existingExpIndex = updatedExpenses.findIndex((e) => e.id === expId || e.id === item.id);
+        const newVehicleExpense: VehicleExpense = {
+          id: expId,
+          vehicleId: item.vehicleId,
+          type: item.vehicleExpenseType || 'abastecimento',
+          date: item.date,
+          amount: item.amount,
+          currentKm: item.vehicleKm,
+          liters: item.vehicleLiters,
+          pricePerLiter: item.vehiclePricePerLiter,
+          serviceDescription: item.description,
+          notes: item.notes,
+        };
+
+        if (existingExpIndex >= 0) {
+          updatedExpenses[existingExpIndex] = newVehicleExpense;
+        } else {
+          updatedExpenses = [newVehicleExpense, ...updatedExpenses];
+        }
+
+        // Auto-update vehicle odometer if km is greater
+        if (item.vehicleKm) {
+          const vIdx = updatedVehicles.findIndex((v) => v.id === item.vehicleId);
+          if (vIdx >= 0 && item.vehicleKm > (updatedVehicles[vIdx].currentKm || 0)) {
+            updatedVehicles[vIdx] = {
+              ...updatedVehicles[vIdx],
+              currentKm: item.vehicleKm,
+            };
+          }
+        }
+      }
     });
 
     persist({
       ...data,
       transactions: updatedTxList,
+      vehicleExpenses: updatedExpenses,
+      vehicles: updatedVehicles,
     });
   };
 
   const handleDeleteTransaction = (id: string) => {
+    if (!data) return;
     if (!window.confirm('Tem certeza que deseja excluir esta movimentação?')) return;
     const updatedTxList = data.transactions.filter((t) => t.id !== id);
+    // Also remove matching vehicle expense if created via this transaction
+    const updatedExpenses = (data.vehicleExpenses || []).filter(
+      (e) => e.id !== `vexp-tx-${id}` && e.id !== id
+    );
     persist({
       ...data,
       transactions: updatedTxList,
+      vehicleExpenses: updatedExpenses,
     });
   };
 
@@ -378,14 +424,58 @@ export function App() {
     if (!data) return;
     const current = data.vehicleExpenses || [];
     const exists = current.some((e) => e.id === exp.id);
-    const updated = exists ? current.map((e) => (e.id === exp.id ? exp : e)) : [exp, ...current];
-    persist({ ...data, vehicleExpenses: updated });
+    const updatedExpenses = exists ? current.map((e) => (e.id === exp.id ? exp : e)) : [exp, ...current];
+
+    // SYNC: Create or update matching Transaction in Movimentações!
+    const targetVeh = (data.vehicles || []).find((v) => v.id === exp.vehicleId);
+    const vehName = targetVeh ? targetVeh.name : 'Veículo';
+    const txId = `tx-vexp-${exp.id}`;
+    let updatedTxList = [...data.transactions];
+    const existingTxIndex = updatedTxList.findIndex((t) => t.id === txId || t.id === exp.id);
+
+    const desc = exp.serviceDescription || `Gasto Veículo (${exp.type})`;
+    const vehicleTx: Transaction = {
+      id: txId,
+      type: 'saida',
+      description: `[${vehName}] ${desc}`,
+      amount: exp.amount,
+      date: exp.date,
+      category: 'Transporte & Combustível',
+      paymentMethod: 'PIX',
+      bankAccountId: data.bankAccounts && data.bankAccounts[0] ? data.bankAccounts[0].id : undefined,
+      status: 'pago',
+      vehicleId: exp.vehicleId,
+      vehicleExpenseType: exp.type,
+      vehicleKm: exp.currentKm,
+      vehicleLiters: exp.liters,
+      vehiclePricePerLiter: exp.pricePerLiter,
+      notes: exp.notes || 'Lançado via módulo de Veículos',
+    };
+
+    if (existingTxIndex >= 0) {
+      updatedTxList[existingTxIndex] = vehicleTx;
+    } else {
+      updatedTxList = [vehicleTx, ...updatedTxList];
+    }
+
+    persist({
+      ...data,
+      vehicleExpenses: updatedExpenses,
+      transactions: updatedTxList,
+    });
   };
 
   const handleDeleteVehicleExpense = (id: string) => {
     if (!data) return;
-    const updated = (data.vehicleExpenses || []).filter((e) => e.id !== id);
-    persist({ ...data, vehicleExpenses: updated });
+    const updatedExpenses = (data.vehicleExpenses || []).filter((e) => e.id !== id);
+    const updatedTx = data.transactions.filter(
+      (t) => t.id !== `tx-vexp-${id}` && t.id !== id
+    );
+    persist({
+      ...data,
+      vehicleExpenses: updatedExpenses,
+      transactions: updatedTx,
+    });
   };
 
   // Amortization Handlers
@@ -424,13 +514,53 @@ export function App() {
     const current = data.investmentTransactions || [];
     const exists = current.some((t) => t.id === tx.id);
     const updated = exists ? current.map((t) => (t.id === tx.id ? tx : t)) : [tx, ...current];
-    persist({ ...data, investmentTransactions: updated });
+
+    // SYNC: Create matching Transaction in Movimentações!
+    const targetAsset = (data.investments || []).find((a) => a.id === tx.assetId);
+    const assetName = targetAsset ? targetAsset.name : 'Investimento';
+    const txId = `tx-inv-${tx.id}`;
+    let updatedTxList = [...data.transactions];
+
+    const isIncome = tx.type === 'dividendo' || tx.type === 'juros_capital' || tx.type === 'resgate';
+    const newTx: Transaction = {
+      id: txId,
+      type: isIncome ? 'entrada' : 'saida',
+      description: `[${assetName}] ${tx.type === 'dividendo' ? 'Rendimento / Dividendo' : tx.type === 'aporte' ? 'Aporte em Ativo' : 'Resgate'}`,
+      amount: tx.amount,
+      date: tx.date,
+      category: isIncome ? 'Salário / Renda' : 'Outros',
+      paymentMethod: 'Transferência',
+      bankAccountId: data.bankAccounts?.[0]?.id,
+      status: 'pago',
+      investmentAssetId: tx.assetId,
+      notes: tx.notes || 'Lançado via módulo de Investimentos',
+    };
+
+    const existingTxIndex = updatedTxList.findIndex((t) => t.id === txId || t.id === tx.id);
+    if (existingTxIndex >= 0) {
+      updatedTxList[existingTxIndex] = newTx;
+    } else {
+      updatedTxList = [newTx, ...updatedTxList];
+    }
+
+    persist({
+      ...data,
+      investmentTransactions: updated,
+      transactions: updatedTxList,
+    });
   };
 
   const handleDeleteInvestmentTx = (id: string) => {
     if (!data) return;
     const updated = (data.investmentTransactions || []).filter((t) => t.id !== id);
-    persist({ ...data, investmentTransactions: updated });
+    const updatedTx = data.transactions.filter(
+      (t) => t.id !== `tx-inv-${id}` && t.id !== id
+    );
+    persist({
+      ...data,
+      investmentTransactions: updated,
+      transactions: updatedTx,
+    });
   };
 
   // Goals Handlers
@@ -632,6 +762,7 @@ export function App() {
         categories={data.categories}
         creditCards={data.creditCards || []}
         bankAccounts={data.bankAccounts || []}
+        vehicles={data.vehicles || []}
       />
 
       <ObraModal

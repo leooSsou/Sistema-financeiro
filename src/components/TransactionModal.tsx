@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Transaction, TransactionType, PaymentStatus, CreditCardItem, BankAccount } from '../types/finance';
+import { Transaction, TransactionType, PaymentStatus, CreditCardItem, BankAccount, Vehicle, VehicleExpenseType } from '../types/finance';
 import { formatCurrency, formatDate } from '../utils/formatters';
-import { X, ArrowDownRight, ArrowUpRight, CreditCard, CalendarCheck, Building2 } from 'lucide-react';
+import { X, ArrowDownRight, ArrowUpRight, CreditCard, CalendarCheck, Building2, Car } from 'lucide-react';
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -11,6 +11,7 @@ interface TransactionModalProps {
   categories: string[];
   creditCards?: CreditCardItem[];
   bankAccounts?: BankAccount[];
+  vehicles?: Vehicle[];
 }
 
 function addMonthsToDate(dateStr: string, monthsToAdd: number): string {
@@ -35,6 +36,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   categories,
   creditCards = [],
   bankAccounts = [],
+  vehicles = [],
 }) => {
   const [type, setType] = useState<TransactionType>('saida');
   const [description, setDescription] = useState('');
@@ -47,6 +49,13 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   const [status, setStatus] = useState<PaymentStatus>('pago');
   const [notes, setNotes] = useState('');
   const [installments, setInstallments] = useState<number>(1);
+
+  // Vehicle linkage state
+  const [vehicleId, setVehicleId] = useState<string>('');
+  const [vehicleExpenseType, setVehicleExpenseType] = useState<VehicleExpenseType>('abastecimento');
+  const [vehicleKm, setVehicleKm] = useState<string>('');
+  const [vehicleLiters, setVehicleLiters] = useState<string>('');
+  const [vehiclePricePerLiter, setVehiclePricePerLiter] = useState<string>('');
 
   useEffect(() => {
     if (transactionToEdit) {
@@ -61,6 +70,11 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       setStatus(transactionToEdit.status);
       setNotes(transactionToEdit.notes || '');
       setInstallments(1);
+      setVehicleId(transactionToEdit.vehicleId || '');
+      setVehicleExpenseType(transactionToEdit.vehicleExpenseType || 'abastecimento');
+      setVehicleKm(transactionToEdit.vehicleKm ? String(transactionToEdit.vehicleKm) : '');
+      setVehicleLiters(transactionToEdit.vehicleLiters ? String(transactionToEdit.vehicleLiters) : '');
+      setVehiclePricePerLiter(transactionToEdit.vehiclePricePerLiter ? String(transactionToEdit.vehiclePricePerLiter) : '');
     } else {
       setType('saida');
       setDescription('');
@@ -73,8 +87,30 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       setStatus('pago');
       setNotes('');
       setInstallments(1);
+      setVehicleId('');
+      setVehicleExpenseType('abastecimento');
+      setVehicleKm('');
+      setVehicleLiters('');
+      setVehiclePricePerLiter('');
     }
   }, [transactionToEdit, isOpen, categories, creditCards, bankAccounts]);
+
+  // Smart auto-detection of vehicle expense from description/category
+  useEffect(() => {
+    if (type === 'saida' && vehicles.length > 0 && !vehicleId && !transactionToEdit) {
+      const lowerDesc = description.toLowerCase();
+      const isFuel = lowerDesc.match(/(gasolina|posto|etanol|diesel|combustivel|shell|ipiranga|abastec)/i);
+      const isMaint = lowerDesc.match(/(oficina|mecanic|oleo|pneu|revisao|troca de oleo)/i);
+      const isIpva = lowerDesc.match(/(ipva|licenciamento|seguro auto|dpvat)/i);
+
+      if (isFuel || isMaint || isIpva || category === 'Transporte & Combustível') {
+        setVehicleId(vehicles[0].id);
+        if (isFuel) setVehicleExpenseType('abastecimento');
+        else if (isMaint) setVehicleExpenseType('manutencao');
+        else if (isIpva) setVehicleExpenseType('ipva');
+      }
+    }
+  }, [description, category, type, vehicles, vehicleId, transactionToEdit]);
 
   // Real-time installment calculation
   const parsedTotal = parseFloat(amount.replace(',', '.')) || 0;
@@ -129,6 +165,11 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         bankAccountId: selectedBankId,
         status,
         notes: notes.trim(),
+        vehicleId: type === 'saida' && vehicleId ? vehicleId : undefined,
+        vehicleExpenseType: type === 'saida' && vehicleId ? vehicleExpenseType : undefined,
+        vehicleKm: type === 'saida' && vehicleId && vehicleKm ? Number(vehicleKm) : undefined,
+        vehicleLiters: type === 'saida' && vehicleId && vehicleLiters ? Number(vehicleLiters) : undefined,
+        vehiclePricePerLiter: type === 'saida' && vehicleId && vehiclePricePerLiter ? Number(vehiclePricePerLiter) : undefined,
       };
       onSave(newTx);
       onClose();
@@ -157,6 +198,11 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         creditCardId: selectedCardId,
         bankAccountId: selectedBankId,
         status: isFirst ? status : 'pendente',
+        vehicleId: isFirst && vehicleId ? vehicleId : undefined,
+        vehicleExpenseType: isFirst && vehicleId ? vehicleExpenseType : undefined,
+        vehicleKm: isFirst && vehicleId && vehicleKm ? Number(vehicleKm) : undefined,
+        vehicleLiters: isFirst && vehicleId && vehicleLiters ? Number(vehicleLiters) : undefined,
+        vehiclePricePerLiter: isFirst && vehicleId && vehiclePricePerLiter ? Number(vehiclePricePerLiter) : undefined,
         notes: notes.trim()
           ? `${notes.trim()} • Parcela ${i} de ${installments} da compra de ${formatCurrency(parsedTotal)}`
           : `Parcela ${i} de ${installments} da compra no cartão de ${formatCurrency(parsedTotal)}`,
@@ -408,6 +454,102 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                   <p className="text-[11px] text-slate-500 italic pt-0.5">
                     * A 1ª parcela usará o status abaixo; as parcelas dos meses seguintes entrarão automaticamente como "Pendente".
                   </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Integração Automática com Veículos & Garagem */}
+          {type === 'saida' && vehicles && vehicles.length > 0 && (
+            <div className="p-3.5 bg-sky-50/70 rounded-xl border border-sky-200/80 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-sky-950 flex items-center gap-1.5 uppercase tracking-wider">
+                  <Car className="w-4 h-4 text-sky-600" />
+                  Vincular a um Veículo (Garagem)
+                </label>
+                <span className="text-[10px] text-sky-700 font-medium">atualiza odômetro e gastos</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Veículo</label>
+                  <select
+                    value={vehicleId}
+                    onChange={(e) => setVehicleId(e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-sky-200 bg-white"
+                  >
+                    <option value="">Não vincular a veículo</option>
+                    {vehicles.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.name} ({v.plate || `${v.brand} ${v.model}`})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Tipo de Despesa</label>
+                  <select
+                    disabled={!vehicleId}
+                    value={vehicleExpenseType}
+                    onChange={(e) => setVehicleExpenseType(e.target.value as any)}
+                    className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-sky-200 bg-white disabled:opacity-50"
+                  >
+                    <option value="abastecimento">⛽ Abastecimento (km/L)</option>
+                    <option value="manutencao">🔧 Manutenção / Revisão</option>
+                    <option value="ipva">📄 IPVA</option>
+                    <option value="seguro">🛡️ Seguro</option>
+                    <option value="licenciamento">📋 Licenciamento</option>
+                    <option value="lavagem">🧼 Lavagem / Estética</option>
+                    <option value="multa">⚠️ Multa</option>
+                    <option value="outros">Outros</option>
+                  </select>
+                </div>
+              </div>
+
+              {vehicleId && (
+                <div className="grid grid-cols-3 gap-2 pt-1 border-t border-sky-100">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">Odômetro (KM)</label>
+                    <input
+                      type="number"
+                      placeholder="Ex: 54200"
+                      value={vehicleKm}
+                      onChange={(e) => setVehicleKm(e.target.value)}
+                      className="w-full px-2 py-1 text-xs rounded-lg border border-sky-200 font-mono"
+                    />
+                  </div>
+                  {vehicleExpenseType === 'abastecimento' && (
+                    <>
+                      <div>
+                        <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">Litros</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="Ex: 40"
+                          value={vehicleLiters}
+                          onChange={(e) => {
+                            setVehicleLiters(e.target.value);
+                            const l = Number(e.target.value);
+                            if (l > 0 && parsedTotal > 0) {
+                              setVehiclePricePerLiter((parsedTotal / l).toFixed(2));
+                            }
+                          }}
+                          className="w-full px-2 py-1 text-xs rounded-lg border border-sky-200"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">Preço/L</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="Ex: 5.89"
+                          value={vehiclePricePerLiter}
+                          onChange={(e) => setVehiclePricePerLiter(e.target.value)}
+                          className="w-full px-2 py-1 text-xs rounded-lg border border-sky-200"
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>

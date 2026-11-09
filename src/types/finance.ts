@@ -36,6 +36,13 @@ export interface Transaction {
   notes?: string;
   isRecurring?: boolean; // Para despesas fixas recorrentes
   externalId?: string; // ID único importado do banco (ex: FITID no OFX) para evitar duplicatas
+  vehicleId?: string; // Veículo vinculado
+  vehicleExpenseType?: VehicleExpenseType; // Tipo de gasto veicular (abastecimento, manutenção, etc.)
+  vehicleKm?: number; // Odômetro registrado na movimentação
+  vehicleLiters?: number; // Litros (se abastecimento)
+  vehiclePricePerLiter?: number; // Preço por litro
+  goalId?: string; // Meta financeira vinculada
+  investmentAssetId?: string; // Ativo de investimento vinculado
 }
 
 export interface CategoryBudget {
