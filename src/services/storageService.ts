@@ -14,6 +14,8 @@ declare global {
       checkForUpdates?: () => Promise<{ success?: boolean; dev?: boolean; result?: any; error?: string; message?: string }>;
       downloadUpdate?: () => Promise<{ success?: boolean; error?: string }>;
       installUpdate?: () => Promise<void>;
+      fetchMarketQuote?: (ticker: string, range?: string) => Promise<any>;
+      fetchMarketIndicators?: () => Promise<any>;
       onUpdaterEvent?: (
         channel: string,
         callback: (data?: any) => void

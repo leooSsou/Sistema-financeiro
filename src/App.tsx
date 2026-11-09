@@ -907,10 +907,12 @@ export function App() {
               investments={data.investments || []}
               transactions={data.investmentTransactions || []}
               bankAccounts={data.bankAccounts || []}
+              allTransactions={data.transactions || []}
               onSaveAsset={handleSaveInvestmentAsset}
               onDeleteAsset={handleDeleteInvestmentAsset}
               onSaveTx={handleSaveInvestmentTx}
               onDeleteTx={handleDeleteInvestmentTx}
+              onSaveGoal={handleSaveGoal}
             />
           )}
 

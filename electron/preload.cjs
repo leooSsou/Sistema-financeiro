@@ -12,6 +12,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   downloadUpdate: () => ipcRenderer.invoke('download-update'),
   installUpdate: () => ipcRenderer.invoke('install-update'),
+  // Market & B3 Quotes APIs
+  fetchMarketQuote: (ticker, range) => ipcRenderer.invoke('fetch-market-quote', ticker, range),
+  fetchMarketIndicators: () => ipcRenderer.invoke('fetch-market-indicators'),
   onUpdaterEvent: (channel, callback) => {
     const validChannels = [
       'updater-checking',
