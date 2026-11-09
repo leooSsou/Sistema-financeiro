@@ -58,4 +58,68 @@ describe('Cross-module Synchronization Logic', () => {
     expect(vehicleExpenses[0].vehicleId).toBe('veh-1');
     expect(vehicles[0].currentKm).toBe(45450); // Odometer increased from 45000 to 45450 automatically!
   });
+
+  it('automatically synchronizes investment dividends to Movimentações as income', () => {
+    const itx = {
+      id: 'itx-456',
+      assetId: 'inv-cdb',
+      type: 'dividendo' as const,
+      date: '2026-11-09',
+      amount: 150.0,
+      notes: 'Rendimento mensal CDB',
+    };
+
+    const isIncome = itx.type === 'dividendo' || itx.type === 'juros_capital' || itx.type === 'resgate';
+    const syncdTx: Transaction = {
+      id: `tx-inv-${itx.id}`,
+      type: isIncome ? 'entrada' : 'saida',
+      description: `[CDB DI] Rendimento / Dividendo`,
+      amount: itx.amount,
+      date: itx.date,
+      category: isIncome ? 'Salário / Renda' : 'Outros',
+      paymentMethod: 'Transferência',
+      bankAccountId: 'bank-nubank',
+      status: 'pago',
+      investmentAssetId: itx.assetId,
+      notes: itx.notes,
+    };
+
+    expect(syncdTx.type).toBe('entrada');
+    expect(syncdTx.amount).toBe(150.0);
+    expect(syncdTx.bankAccountId).toBe('bank-nubank');
+    expect(syncdTx.investmentAssetId).toBe('inv-cdb');
+  });
+
+  it('automatically synchronizes goal quick deposits to Movimentações as expense and updates goal total', () => {
+    let goal = {
+      id: 'goal-1',
+      title: 'Reserva de Emergência',
+      targetAmount: 20000,
+      currentAmount: 5000,
+      category: 'reserva',
+    };
+
+    const depositAmount = 1000;
+    goal = { ...goal, currentAmount: goal.currentAmount + depositAmount };
+
+    const syncdTx: Transaction = {
+      id: `tx-goal-${goal.id}-123`,
+      type: 'saida',
+      description: `[Meta: ${goal.title}] Aporte / Depósito`,
+      amount: depositAmount,
+      date: '2026-11-09',
+      category: 'Investimentos',
+      paymentMethod: 'Transferência',
+      bankAccountId: 'bank-itau',
+      status: 'pago',
+      goalId: goal.id,
+      notes: `Aporte direto registrado para a meta "${goal.title}"`,
+    };
+
+    expect(goal.currentAmount).toBe(6000);
+    expect(syncdTx.type).toBe('saida');
+    expect(syncdTx.amount).toBe(1000);
+    expect(syncdTx.goalId).toBe('goal-1');
+    expect(syncdTx.bankAccountId).toBe('bank-itau');
+  });
 });

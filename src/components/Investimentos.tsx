@@ -24,15 +24,16 @@ import {
   Tooltip,
   Legend
 } from 'recharts';
-import { InvestmentAsset, InvestmentTransaction, AssetType } from '../types/finance';
+import { InvestmentAsset, InvestmentTransaction, AssetType, BankAccount } from '../types/finance';
 import { formatCurrency } from '../utils/formatters';
 
 interface InvestimentosProps {
   investments: InvestmentAsset[];
   transactions: InvestmentTransaction[];
+  bankAccounts?: BankAccount[];
   onSaveAsset: (asset: InvestmentAsset) => void;
   onDeleteAsset: (id: string) => void;
-  onSaveTx: (tx: InvestmentTransaction) => void;
+  onSaveTx: (tx: InvestmentTransaction, bankAccountId?: string) => void;
   onDeleteTx: (id: string) => void;
 }
 
@@ -48,6 +49,7 @@ const ASSET_TYPE_LABELS: Record<AssetType, { label: string; color: string }> = {
 export const Investimentos: React.FC<InvestimentosProps> = ({
   investments,
   transactions,
+  bankAccounts = [],
   onSaveAsset,
   onDeleteAsset,
   onSaveTx,
@@ -78,6 +80,7 @@ export const Investimentos: React.FC<InvestimentosProps> = ({
   const [txType, setTxType] = useState<'aporte' | 'resgate' | 'dividendo' | 'juros_capital'>('dividendo');
   const [txDate, setTxDate] = useState(new Date().toISOString().slice(0, 10));
   const [txAmount, setTxAmount] = useState<number>(0);
+  const [txBankAccountId, setTxBankAccountId] = useState<string>(bankAccounts[0]?.id || '');
   const [txNotes, setTxNotes] = useState('');
 
   // Calculations & KPIs
@@ -170,6 +173,7 @@ export const Investimentos: React.FC<InvestimentosProps> = ({
     setTxType('dividendo');
     setTxDate(new Date().toISOString().slice(0, 10));
     setTxAmount(0);
+    setTxBankAccountId(bankAccounts[0]?.id || '');
     setTxNotes('');
     setIsTxModalOpen(true);
   };
@@ -187,7 +191,7 @@ export const Investimentos: React.FC<InvestimentosProps> = ({
       notes: txNotes || undefined,
     };
 
-    onSaveTx(newTx);
+    onSaveTx(newTx, txBankAccountId || undefined);
 
     // If aporte, optionally update totalInvested and currentValue of the asset
     const targetAsset = investments.find((a) => a.id === txAssetId);
@@ -728,6 +732,28 @@ export const Investimentos: React.FC<InvestimentosProps> = ({
                   className="mt-1 w-full px-3 py-2 text-xs rounded-xl border border-slate-200 font-black text-slate-900"
                 />
               </div>
+
+              {bankAccounts.length > 0 && (
+                <div>
+                  <label className="text-xs font-semibold text-slate-600">
+                    {txType === 'dividendo' || txType === 'resgate'
+                      ? 'Conta Bancária para Crédito (Entrada)'
+                      : 'Conta Bancária para Débito (Saída)'}
+                  </label>
+                  <select
+                    value={txBankAccountId}
+                    onChange={(e) => setTxBankAccountId(e.target.value)}
+                    className="mt-1 w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white font-medium text-slate-800"
+                  >
+                    <option value="">Não movimentar saldo bancário</option>
+                    {bankAccounts.map((acc) => (
+                      <option key={acc.id} value={acc.id}>
+                        {acc.name} ({acc.type})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div>
                 <label className="text-xs font-semibold text-slate-600">Observações</label>

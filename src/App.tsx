@@ -151,7 +151,7 @@ export function App() {
     });
   };
 
-  // Obra Handlers
+  // Obra Handlers with Cross-Module Sync
   const handleSaveObra = (entry: ObraEntry) => {
     const existingIndex = data.obraEntries.findIndex((e) => e.id === entry.id);
     let updatedList: ObraEntry[];
@@ -163,34 +163,72 @@ export function App() {
       updatedList = [entry, ...data.obraEntries];
     }
 
+    // SYNC: Create or update matching transaction in Movimentações
+    const txId = `tx-obra-${entry.id}`;
+    let updatedTxList = [...data.transactions];
+    const existingTxIndex = updatedTxList.findIndex((t) => t.id === txId);
+
+    const obraTx: Transaction = {
+      id: txId,
+      type: 'saida',
+      description: `Taxa de Obra Caixa - Medição ${entry.evolutionPercent}% (${entry.referenceMonth})`,
+      amount: entry.amount,
+      date: entry.dueDate || new Date().toISOString().slice(0, 10),
+      category: 'Evolução de Obra',
+      paymentMethod: 'Boleto',
+      bankAccountId: data.bankAccounts?.[0]?.id,
+      status: entry.status,
+      notes: entry.notes || `Referente à medição física do mês ${entry.referenceMonth}`,
+    };
+
+    if (existingTxIndex >= 0) {
+      updatedTxList[existingTxIndex] = obraTx;
+    } else {
+      updatedTxList = [obraTx, ...updatedTxList];
+    }
+
     persist({
       ...data,
       obraEntries: updatedList,
+      transactions: updatedTxList,
     });
   };
 
   const handleDeleteObra = (id: string) => {
     if (!window.confirm('Tem certeza que deseja excluir este registro de obra?')) return;
     const updatedList = data.obraEntries.filter((e) => e.id !== id);
+    const updatedTxList = data.transactions.filter((t) => t.id !== `tx-obra-${id}`);
     persist({
       ...data,
       obraEntries: updatedList,
+      transactions: updatedTxList,
     });
   };
 
   const handleToggleObraStatus = (id: string) => {
+    let nextStatus: PaymentStatus = 'pago';
     const updatedList: ObraEntry[] = data.obraEntries.map((e) => {
       if (e.id === id) {
+        nextStatus = (e.status === 'pago' ? 'pendente' : 'pago') as PaymentStatus;
         return {
           ...e,
-          status: (e.status === 'pago' ? 'pendente' : 'pago') as PaymentStatus,
+          status: nextStatus,
         };
       }
       return e;
     });
+
+    const updatedTxList: Transaction[] = data.transactions.map((t) => {
+      if (t.id === `tx-obra-${id}`) {
+        return { ...t, status: nextStatus };
+      }
+      return t;
+    });
+
     persist({
       ...data,
       obraEntries: updatedList,
+      transactions: updatedTxList,
     });
   };
 
@@ -233,13 +271,14 @@ export function App() {
     let updatedTransactions = data.transactions;
     if (registerExpense) {
       const newTx: Transaction = {
-        id: `tx-inst-${Date.now()}`,
+        id: `tx-inst-${item.id}-${newPaidCount}`,
         date: new Date().toISOString().slice(0, 10),
         description: `Parcela ${newPaidCount}/${item.totalInstallments} - ${item.title}`,
         type: 'saida',
         amount: item.installmentValue,
         category: 'Casa & Reforma',
         paymentMethod: 'Boleto',
+        bankAccountId: data.bankAccounts?.[0]?.id,
         status: 'pago',
         notes: `Abatimento automático de parcela (${item.supplier || item.category})`,
       };
@@ -255,15 +294,23 @@ export function App() {
 
   const handleUndoInstallment = (item: HouseInstallment) => {
     if (item.paidInstallments <= 0) return;
+    const targetCount = item.paidInstallments;
     const updatedInstallments = data.houseInstallments.map((i) => {
       if (i.id === item.id) {
-        return { ...i, paidInstallments: i.paidInstallments - 1 };
+        return { ...i, paidInstallments: Math.max(0, i.paidInstallments - 1) };
       }
       return i;
     });
+
+    // Remove matching transaction
+    const updatedTransactions = data.transactions.filter(
+      (t) => t.id !== `tx-inst-${item.id}-${targetCount}`
+    );
+
     persist({
       ...data,
       houseInstallments: updatedInstallments,
+      transactions: updatedTransactions,
     });
   };
 
@@ -509,7 +556,7 @@ export function App() {
     persist({ ...data, investments: updated, investmentTransactions: updatedTx });
   };
 
-  const handleSaveInvestmentTx = (tx: InvestmentTransaction) => {
+  const handleSaveInvestmentTx = (tx: InvestmentTransaction, bankAccountId?: string) => {
     if (!data) return;
     const current = data.investmentTransactions || [];
     const exists = current.some((t) => t.id === tx.id);
@@ -522,6 +569,8 @@ export function App() {
     let updatedTxList = [...data.transactions];
 
     const isIncome = tx.type === 'dividendo' || tx.type === 'juros_capital' || tx.type === 'resgate';
+    const chosenBankId = bankAccountId !== undefined ? (bankAccountId || undefined) : data.bankAccounts?.[0]?.id;
+
     const newTx: Transaction = {
       id: txId,
       type: isIncome ? 'entrada' : 'saida',
@@ -530,7 +579,7 @@ export function App() {
       date: tx.date,
       category: isIncome ? 'Salário / Renda' : 'Outros',
       paymentMethod: 'Transferência',
-      bankAccountId: data.bankAccounts?.[0]?.id,
+      bankAccountId: chosenBankId,
       status: 'pago',
       investmentAssetId: tx.assetId,
       notes: tx.notes || 'Lançado via módulo de Investimentos',
@@ -576,6 +625,42 @@ export function App() {
     if (!data) return;
     const updated = (data.goals || []).filter((g) => g.id !== id);
     persist({ ...data, goals: updated });
+  };
+
+  const handleDepositGoal = (goalId: string, amount: number, bankAccountId?: string) => {
+    if (!data) return;
+    const targetGoal = (data.goals || []).find((g) => g.id === goalId);
+    if (!targetGoal) return;
+
+    const newCurrent = (targetGoal.currentAmount || 0) + amount;
+    const updatedGoals = (data.goals || []).map((g) =>
+      g.id === goalId ? { ...g, currentAmount: newCurrent } : g
+    );
+
+    let updatedTxList = [...data.transactions];
+    if (bankAccountId !== '') {
+      const txId = `tx-goal-${goalId}-${Date.now()}`;
+      const newTx: Transaction = {
+        id: txId,
+        type: 'saida',
+        description: `[Meta: ${targetGoal.title}] Aporte / Depósito`,
+        amount: amount,
+        date: new Date().toISOString().slice(0, 10),
+        category: 'Investimentos',
+        paymentMethod: 'Transferência',
+        bankAccountId: bankAccountId || data.bankAccounts?.[0]?.id,
+        status: 'pago',
+        goalId: goalId,
+        notes: `Aporte direto registrado para a meta "${targetGoal.title}"`,
+      };
+      updatedTxList = [newTx, ...updatedTxList];
+    }
+
+    persist({
+      ...data,
+      goals: updatedGoals,
+      transactions: updatedTxList,
+    });
   };
 
   return (
@@ -715,6 +800,7 @@ export function App() {
             <Investimentos
               investments={data.investments || []}
               transactions={data.investmentTransactions || []}
+              bankAccounts={data.bankAccounts || []}
               onSaveAsset={handleSaveInvestmentAsset}
               onDeleteAsset={handleDeleteInvestmentAsset}
               onSaveTx={handleSaveInvestmentTx}
@@ -725,8 +811,10 @@ export function App() {
           {activeTab === 'metas' && (
             <MetasFinanceiras
               goals={data.goals || []}
+              bankAccounts={data.bankAccounts || []}
               onSaveGoal={handleSaveGoal}
               onDeleteGoal={handleDeleteGoal}
+              onDeposit={handleDepositGoal}
             />
           )}
 

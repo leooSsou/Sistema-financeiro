@@ -14,19 +14,23 @@ import {
   Clock,
   Award
 } from 'lucide-react';
-import { FinancialGoal } from '../types/finance';
+import { FinancialGoal, BankAccount } from '../types/finance';
 import { formatCurrency, formatDate } from '../utils/formatters';
 
 interface MetasFinanceirasProps {
   goals: FinancialGoal[];
+  bankAccounts?: BankAccount[];
   onSaveGoal: (goal: FinancialGoal) => void;
   onDeleteGoal: (id: string) => void;
+  onDeposit?: (goalId: string, amount: number, bankAccountId?: string) => void;
 }
 
 export const MetasFinanceiras: React.FC<MetasFinanceirasProps> = ({
   goals,
+  bankAccounts = [],
   onSaveGoal,
   onDeleteGoal,
+  onDeposit,
 }) => {
   // Modals state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -35,6 +39,7 @@ export const MetasFinanceiras: React.FC<MetasFinanceirasProps> = ({
   // Quick deposit modal
   const [depositGoalId, setDepositGoalId] = useState<string | null>(null);
   const [depositAmount, setDepositAmount] = useState<number>(500);
+  const [depositBankAccountId, setDepositBankAccountId] = useState<string>(bankAccounts[0]?.id || '');
 
   // Goal Form state
   const [title, setTitle] = useState('');
@@ -116,12 +121,16 @@ export const MetasFinanceiras: React.FC<MetasFinanceirasProps> = ({
     e.preventDefault();
     if (!depositGoalId || depositAmount <= 0) return;
 
-    const target = goals.find((g) => g.id === depositGoalId);
-    if (target) {
-      onSaveGoal({
-        ...target,
-        currentAmount: target.currentAmount + Number(depositAmount),
-      });
+    if (onDeposit) {
+      onDeposit(depositGoalId, Number(depositAmount), depositBankAccountId || undefined);
+    } else {
+      const target = goals.find((g) => g.id === depositGoalId);
+      if (target) {
+        onSaveGoal({
+          ...target,
+          currentAmount: target.currentAmount + Number(depositAmount),
+        });
+      }
     }
 
     setDepositGoalId(null);
@@ -555,6 +564,24 @@ export const MetasFinanceiras: React.FC<MetasFinanceirasProps> = ({
                   className="mt-1 w-full px-3 py-2 text-sm rounded-xl border border-slate-200 font-black text-teal-700"
                 />
               </div>
+
+              {bankAccounts.length > 0 && (
+                <div>
+                  <label className="text-xs font-semibold text-slate-600">Debitar da Conta Bancária</label>
+                  <select
+                    value={depositBankAccountId}
+                    onChange={(e) => setDepositBankAccountId(e.target.value)}
+                    className="mt-1 w-full px-3 py-2 text-xs font-bold rounded-xl border border-teal-200 bg-white"
+                  >
+                    <option value="">Nenhuma conta (não debitar saldo real)</option>
+                    {bankAccounts.map((acc) => (
+                      <option key={acc.id} value={acc.id}>
+                        {acc.name} ({acc.type})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="flex gap-2">
                 {[100, 250, 500, 1000].map((val) => (
