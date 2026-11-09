@@ -675,6 +675,48 @@ export function App() {
     });
   };
 
+  const handleDirectBuyStock = (
+    asset: InvestmentAsset,
+    tx: InvestmentTransaction,
+    bankAccountId?: string
+  ) => {
+    if (!data) return;
+    const currentAssets = data.investments || [];
+    const exists = currentAssets.some((a) => a.id === asset.id);
+    const updatedAssets = exists
+      ? currentAssets.map((a) => (a.id === asset.id ? asset : a))
+      : [...currentAssets, asset];
+
+    const currentTxs = data.investmentTransactions || [];
+    const updatedTxs = [tx, ...currentTxs];
+
+    let updatedTxList = [...data.transactions];
+    if (bankAccountId !== '') {
+      const txId = `tx-inv-${tx.id}`;
+      const newTx: Transaction = {
+        id: txId,
+        type: 'saida',
+        description: `[${asset.name}] Compra de Ativo (${asset.ticker || 'Ações'})`,
+        amount: tx.amount,
+        date: tx.date,
+        category: 'Investimentos',
+        paymentMethod: 'Transferência',
+        bankAccountId: bankAccountId || data.bankAccounts?.[0]?.id,
+        status: 'pago',
+        investmentAssetId: asset.id,
+        notes: tx.notes || 'Compra via Radar B3',
+      };
+      updatedTxList = [newTx, ...updatedTxList];
+    }
+
+    persist({
+      ...data,
+      investments: updatedAssets,
+      investmentTransactions: updatedTxs,
+      transactions: updatedTxList,
+    });
+  };
+
   // Goals Handlers
   const handleSaveGoal = (goal: FinancialGoal) => {
     if (!data) return;
@@ -912,6 +954,7 @@ export function App() {
               onDeleteAsset={handleDeleteInvestmentAsset}
               onSaveTx={handleSaveInvestmentTx}
               onDeleteTx={handleDeleteInvestmentTx}
+              onDirectBuyStock={handleDirectBuyStock}
               onSaveGoal={handleSaveGoal}
             />
           )}
