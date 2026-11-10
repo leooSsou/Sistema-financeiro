@@ -186,31 +186,116 @@ export function App() {
   const handleDeleteTransaction = (id: string) => {
     if (!data) return;
     if (!window.confirm('Tem certeza que deseja excluir esta movimentação?')) return;
+    const targetTx = data.transactions.find((t) => t.id === id);
     const updatedTxList = data.transactions.filter((t) => t.id !== id);
-    // Also remove matching vehicle expense if created via this transaction
+
+    // 1. Vehicle expenses
     const updatedExpenses = (data.vehicleExpenses || []).filter(
       (e) => e.id !== `vexp-tx-${id}` && e.id !== id
     );
+
+    // 2. Obra entries (if it was an obra tx, reset to pendente)
+    let updatedObra = data.obraEntries || [];
+    if (id.startsWith('tx-obra-')) {
+      const obraId = id.replace('tx-obra-', '');
+      updatedObra = updatedObra.map((e) =>
+        e.id === obraId ? { ...e, status: 'pendente' as const } : e
+      );
+    }
+
+    // 3. House installments (if it was an installment payment, decrement paidInstallments)
+    let updatedHouse = data.houseInstallments || [];
+    if (id.startsWith('tx-inst-')) {
+      const parts = id.replace('tx-inst-', '').split('-');
+      const instId = parts.slice(0, -1).join('-');
+      if (instId) {
+        updatedHouse = updatedHouse.map((i) =>
+          i.id === instId ? { ...i, paidInstallments: Math.max(0, i.paidInstallments - 1) } : i
+        );
+      }
+    }
+
+    // 4. Goals (if it was a goal deposit)
+    let updatedGoals = data.goals || [];
+    if (targetTx?.goalId || id.startsWith('tx-goal-')) {
+      const goalId = targetTx?.goalId || id.split('-')[2];
+      if (goalId && targetTx) {
+        updatedGoals = updatedGoals.map((g) =>
+          g.id === goalId
+            ? { ...g, currentAmount: Math.max(0, (g.currentAmount || 0) - targetTx.amount) }
+            : g
+        );
+      }
+    }
+
+    // 5. Investments (if it was an investment tx)
+    let updatedInvTx = data.investmentTransactions || [];
+    let updatedInvestments = data.investments || [];
+    if (targetTx?.investmentAssetId || id.startsWith('tx-inv-')) {
+      const itxId = id.startsWith('tx-inv-') ? id.replace('tx-inv-', '') : id;
+      const foundItx = updatedInvTx.find((t) => t.id === itxId);
+      updatedInvTx = updatedInvTx.filter((t) => t.id !== itxId);
+      if (foundItx && targetTx) {
+        const assetId = foundItx.assetId || targetTx.investmentAssetId;
+        if (assetId) {
+          updatedInvestments = updatedInvestments.map((a) => {
+            if (a.id === assetId) {
+              if (foundItx.type === 'aporte') {
+                return {
+                  ...a,
+                  totalInvested: Math.max(0, Number((a.totalInvested - foundItx.amount).toFixed(2))),
+                  currentValue: Math.max(0, Number((a.currentValue - foundItx.amount).toFixed(2))),
+                };
+              } else if (foundItx.type === 'resgate') {
+                return {
+                  ...a,
+                  currentValue: Number((a.currentValue + foundItx.amount).toFixed(2)),
+                };
+              }
+            }
+            return a;
+          });
+        }
+      }
+    }
+
     persist({
       ...data,
       transactions: updatedTxList,
       vehicleExpenses: updatedExpenses,
+      obraEntries: updatedObra,
+      houseInstallments: updatedHouse,
+      goals: updatedGoals,
+      investmentTransactions: updatedInvTx,
+      investments: updatedInvestments,
     });
   };
 
   const handleToggleTxStatus = (id: string) => {
+    let nextStatus: PaymentStatus = 'pago';
     const updatedTxList: Transaction[] = data.transactions.map((t) => {
       if (t.id === id) {
+        nextStatus = (t.status === 'pago' ? 'pendente' : 'pago') as PaymentStatus;
         return {
           ...t,
-          status: (t.status === 'pago' ? 'pendente' : 'pago') as PaymentStatus,
+          status: nextStatus,
         };
       }
       return t;
     });
+
+    let updatedObra = data.obraEntries || [];
+    if (id.startsWith('tx-obra-')) {
+      const obraId = id.replace('tx-obra-', '');
+      updatedObra = updatedObra.map((e) =>
+        e.id === obraId ? { ...e, status: nextStatus } : e
+      );
+    }
+
     persist({
       ...data,
       transactions: updatedTxList,
+      obraEntries: updatedObra,
     });
   };
 
@@ -536,8 +621,20 @@ export function App() {
     const exists = current.some((e) => e.id === exp.id);
     const updatedExpenses = exists ? current.map((e) => (e.id === exp.id ? exp : e)) : [exp, ...current];
 
+    // Auto-update vehicle odometer atomically if currentKm is higher
+    let updatedVehicles = [...(data.vehicles || [])];
+    if (exp.currentKm) {
+      const vIdx = updatedVehicles.findIndex((v) => v.id === exp.vehicleId);
+      if (vIdx >= 0 && exp.currentKm > (updatedVehicles[vIdx].currentKm || 0)) {
+        updatedVehicles[vIdx] = {
+          ...updatedVehicles[vIdx],
+          currentKm: exp.currentKm,
+        };
+      }
+    }
+
     // SYNC: Create or update matching Transaction in Movimentações!
-    const targetVeh = (data.vehicles || []).find((v) => v.id === exp.vehicleId);
+    const targetVeh = updatedVehicles.find((v) => v.id === exp.vehicleId);
     const vehName = targetVeh ? targetVeh.name : 'Veículo';
     const txId = `tx-vexp-${exp.id}`;
     let updatedTxList = [...data.transactions];
@@ -570,6 +667,7 @@ export function App() {
 
     persist({
       ...data,
+      vehicles: updatedVehicles,
       vehicleExpenses: updatedExpenses,
       transactions: updatedTxList,
     });
@@ -616,7 +714,13 @@ export function App() {
     if (!data) return;
     const updated = (data.investments || []).filter((a) => a.id !== id);
     const updatedTx = (data.investmentTransactions || []).filter((t) => t.assetId !== id);
-    persist({ ...data, investments: updated, investmentTransactions: updatedTx });
+    const updatedGeneralTx = data.transactions.filter((t) => t.investmentAssetId !== id);
+    persist({
+      ...data,
+      investments: updated,
+      investmentTransactions: updatedTx,
+      transactions: updatedGeneralTx,
+    });
   };
 
   const handleSaveInvestmentTx = (tx: InvestmentTransaction, bankAccountId?: string) => {
@@ -625,34 +729,34 @@ export function App() {
     const exists = current.some((t) => t.id === tx.id);
     const updated = exists ? current.map((t) => (t.id === tx.id ? tx : t)) : [tx, ...current];
 
-    // SYNC: Create matching Transaction in Movimentações!
+    // SYNC: Create matching Transaction in Movimentações if bank account selected
     const targetAsset = (data.investments || []).find((a) => a.id === tx.assetId);
     const assetName = targetAsset ? targetAsset.name : 'Investimento';
     const txId = `tx-inv-${tx.id}`;
     let updatedTxList = [...data.transactions];
 
-    const isIncome = tx.type === 'dividendo' || tx.type === 'juros_capital' || tx.type === 'resgate';
-    const chosenBankId = bankAccountId !== undefined ? (bankAccountId || undefined) : data.bankAccounts?.[0]?.id;
+    if (bankAccountId && bankAccountId.trim() !== '') {
+      const isIncome = tx.type === 'dividendo' || tx.type === 'juros_capital' || tx.type === 'resgate';
+      const newTx: Transaction = {
+        id: txId,
+        type: isIncome ? 'entrada' : 'saida',
+        description: `[${assetName}] ${tx.type === 'dividendo' ? 'Rendimento / Dividendo' : tx.type === 'aporte' ? 'Aporte em Ativo' : 'Resgate'}`,
+        amount: tx.amount,
+        date: tx.date,
+        category: isIncome ? 'Salário / Renda' : 'Outros',
+        paymentMethod: 'Transferência',
+        bankAccountId: bankAccountId,
+        status: 'pago',
+        investmentAssetId: tx.assetId,
+        notes: tx.notes || 'Lançado via módulo de Investimentos',
+      };
 
-    const newTx: Transaction = {
-      id: txId,
-      type: isIncome ? 'entrada' : 'saida',
-      description: `[${assetName}] ${tx.type === 'dividendo' ? 'Rendimento / Dividendo' : tx.type === 'aporte' ? 'Aporte em Ativo' : 'Resgate'}`,
-      amount: tx.amount,
-      date: tx.date,
-      category: isIncome ? 'Salário / Renda' : 'Outros',
-      paymentMethod: 'Transferência',
-      bankAccountId: chosenBankId,
-      status: 'pago',
-      investmentAssetId: tx.assetId,
-      notes: tx.notes || 'Lançado via módulo de Investimentos',
-    };
-
-    const existingTxIndex = updatedTxList.findIndex((t) => t.id === txId || t.id === tx.id);
-    if (existingTxIndex >= 0) {
-      updatedTxList[existingTxIndex] = newTx;
-    } else {
-      updatedTxList = [newTx, ...updatedTxList];
+      const existingTxIndex = updatedTxList.findIndex((t) => t.id === txId || t.id === tx.id);
+      if (existingTxIndex >= 0) {
+        updatedTxList[existingTxIndex] = newTx;
+      } else {
+        updatedTxList = [newTx, ...updatedTxList];
+      }
     }
 
     let updatedInvestments = [...(data.investments || [])];
@@ -689,12 +793,42 @@ export function App() {
 
   const handleDeleteInvestmentTx = (id: string) => {
     if (!data) return;
+    const targetTx = (data.investmentTransactions || []).find((t) => t.id === id);
     const updated = (data.investmentTransactions || []).filter((t) => t.id !== id);
     const updatedTx = data.transactions.filter(
       (t) => t.id !== `tx-inv-${id}` && t.id !== id
     );
+
+    let updatedInvestments = [...(data.investments || [])];
+    if (targetTx) {
+      const targetAsset = updatedInvestments.find((a) => a.id === targetTx.assetId);
+      if (targetAsset) {
+        if (targetTx.type === 'aporte') {
+          updatedInvestments = updatedInvestments.map((a) =>
+            a.id === targetAsset.id
+              ? {
+                  ...a,
+                  totalInvested: Math.max(0, Number((a.totalInvested - targetTx.amount).toFixed(2))),
+                  currentValue: Math.max(0, Number((a.currentValue - targetTx.amount).toFixed(2))),
+                }
+              : a
+          );
+        } else if (targetTx.type === 'resgate') {
+          updatedInvestments = updatedInvestments.map((a) =>
+            a.id === targetAsset.id
+              ? {
+                  ...a,
+                  currentValue: Number((a.currentValue + targetTx.amount).toFixed(2)),
+                }
+              : a
+          );
+        }
+      }
+    }
+
     persist({
       ...data,
+      investments: updatedInvestments,
       investmentTransactions: updated,
       transactions: updatedTx,
     });
@@ -716,7 +850,7 @@ export function App() {
     const updatedTxs = [tx, ...currentTxs];
 
     let updatedTxList = [...data.transactions];
-    if (bankAccountId !== '') {
+    if (bankAccountId && bankAccountId.trim() !== '') {
       const txId = `tx-inv-${tx.id}`;
       const newTx: Transaction = {
         id: txId,
@@ -726,7 +860,7 @@ export function App() {
         date: tx.date,
         category: 'Investimentos',
         paymentMethod: 'Transferência',
-        bankAccountId: bankAccountId || data.bankAccounts?.[0]?.id,
+        bankAccountId: bankAccountId,
         status: 'pago',
         investmentAssetId: asset.id,
         notes: tx.notes || 'Compra via Radar B3',
@@ -754,7 +888,8 @@ export function App() {
   const handleDeleteGoal = (id: string) => {
     if (!data) return;
     const updated = (data.goals || []).filter((g) => g.id !== id);
-    persist({ ...data, goals: updated });
+    const updatedTx = (data.transactions || []).filter((t) => t.goalId !== id && !t.id.startsWith(`tx-goal-${id}-`));
+    persist({ ...data, goals: updated, transactions: updatedTx });
   };
 
   const handleDepositGoal = (goalId: string, amount: number, bankAccountId?: string) => {
@@ -768,7 +903,7 @@ export function App() {
     );
 
     let updatedTxList = [...data.transactions];
-    if (bankAccountId !== '') {
+    if (bankAccountId && bankAccountId.trim() !== '') {
       const txId = `tx-goal-${goalId}-${Date.now()}`;
       const newTx: Transaction = {
         id: txId,
@@ -778,7 +913,7 @@ export function App() {
         date: new Date().toISOString().slice(0, 10),
         category: 'Investimentos',
         paymentMethod: 'Transferência',
-        bankAccountId: bankAccountId || data.bankAccounts?.[0]?.id,
+        bankAccountId: bankAccountId,
         status: 'pago',
         goalId: goalId,
         notes: `Aporte direto registrado para a meta "${targetGoal.title}"`,

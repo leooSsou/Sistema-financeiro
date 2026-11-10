@@ -234,16 +234,6 @@ export const Veiculos: React.FC<VeiculosProps> = ({
     };
 
     onSaveExpense(newExp);
-
-    // If currentKm entered is higher than vehicle's current km, update vehicle's km automatically!
-    const targetVeh = vehicles.find((v) => v.id === eVehicleId);
-    if (targetVeh && eKm && eKm > targetVeh.currentKm) {
-      onSaveVehicle({
-        ...targetVeh,
-        currentKm: Number(eKm),
-      });
-    }
-
     setIsExpenseModalOpen(false);
   };
 

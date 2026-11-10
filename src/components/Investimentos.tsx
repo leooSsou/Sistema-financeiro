@@ -355,23 +355,6 @@ export const Investimentos: React.FC<InvestimentosProps> = ({
     };
 
     onSaveTx(newTx, txBankAccountId || undefined);
-
-    const targetAsset = investments.find((a) => a.id === txAssetId);
-    if (targetAsset) {
-      if (txType === 'aporte') {
-        onSaveAsset({
-          ...targetAsset,
-          totalInvested: targetAsset.totalInvested + Number(txAmount),
-          currentValue: targetAsset.currentValue + Number(txAmount),
-        });
-      } else if (txType === 'resgate') {
-        onSaveAsset({
-          ...targetAsset,
-          currentValue: Math.max(0, targetAsset.currentValue - Number(txAmount)),
-        });
-      }
-    }
-
     setIsTxModalOpen(false);
   };
 
