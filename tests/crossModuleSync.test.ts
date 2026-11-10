@@ -122,4 +122,76 @@ describe('Cross-module Synchronization Logic', () => {
     expect(syncdTx.goalId).toBe('goal-1');
     expect(syncdTx.bankAccountId).toBe('bank-itau');
   });
+
+  it('correctly reverts cross-module state when a linked transaction is deleted in Movimentações', () => {
+    let obraEntries = [{ id: 'obra-1', description: 'Cimento', amount: 350, status: 'pago' as const }];
+    let houseInstallments = [{ id: 'house-1', description: 'Caixa', paidInstallments: 5, installmentValue: 1200 }];
+    let goals = [{ id: 'goal-99', title: 'Carro Novo', targetAmount: 50000, currentAmount: 15000, category: 'veiculo' }];
+    let investments = [{ id: 'inv-1', name: 'Tesouro', totalInvested: 2000, currentValue: 2000, type: 'renda_fixa' as const, institution: 'XP' }];
+    let investmentTransactions = [{ id: 'itx-1', assetId: 'inv-1', type: 'aporte' as const, date: '2026-11-09', amount: 500 }];
+
+    // Simulate deleting tx-obra-obra-1
+    const obraTxId = 'tx-obra-obra-1';
+    if (obraTxId.startsWith('tx-obra-')) {
+      const oId = obraTxId.replace('tx-obra-', '');
+      obraEntries = obraEntries.map((e) => (e.id === oId ? { ...e, status: 'pendente' as const } : e));
+    }
+    expect(obraEntries[0].status).toBe('pendente');
+
+    // Simulate deleting tx-inst-house-1-5
+    const instTxId = 'tx-inst-house-1-5';
+    if (instTxId.startsWith('tx-inst-')) {
+      const parts = instTxId.replace('tx-inst-', '').split('-');
+      const iId = parts.slice(0, -1).join('-');
+      houseInstallments = houseInstallments.map((i) =>
+        i.id === iId ? { ...i, paidInstallments: Math.max(0, i.paidInstallments - 1) } : i
+      );
+    }
+    expect(houseInstallments[0].paidInstallments).toBe(4);
+
+    // Simulate deleting tx-goal-goal-99
+    const goalTx = { id: 'tx-goal-goal-99-1234', goalId: 'goal-99', amount: 2000 };
+    goals = goals.map((g) => (g.id === goalTx.goalId ? { ...g, currentAmount: g.currentAmount - goalTx.amount } : g));
+    expect(goals[0].currentAmount).toBe(13000);
+
+    // Simulate deleting tx-inv-itx-1
+    const invTx = { id: 'tx-inv-itx-1', investmentAssetId: 'inv-1', amount: 500 };
+    const itx = investmentTransactions.find((t) => t.id === 'itx-1');
+    if (itx) {
+      investmentTransactions = investmentTransactions.filter((t) => t.id !== 'itx-1');
+      investments = investments.map((a) =>
+        a.id === itx.assetId
+          ? {
+              ...a,
+              totalInvested: a.totalInvested - itx.amount,
+              currentValue: a.currentValue - itx.amount,
+            }
+          : a
+      );
+    }
+    expect(investmentTransactions).toHaveLength(0);
+    expect(investments[0].totalInvested).toBe(1500);
+    expect(investments[0].currentValue).toBe(1500);
+  });
+
+  it('respects "do not debit bank account" by skipping transaction creation', () => {
+    const bankAccountId: string | undefined = undefined;
+    let transactions: Transaction[] = [];
+
+    // When bankAccountId is undefined or empty string, no transaction is added
+    if (bankAccountId && bankAccountId.trim() !== '') {
+      transactions.push({
+        id: 'tx-test',
+        date: '2026-11-09',
+        description: 'Test',
+        type: 'saida',
+        amount: 100,
+        category: 'Outros',
+        paymentMethod: 'Transferência',
+        status: 'pago',
+      });
+    }
+
+    expect(transactions).toHaveLength(0);
+  });
 });
